@@ -7,6 +7,10 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage
 from richmenu import RichMenuManager, RichMenu
 
+# change below if using line-simulator or it would not work
+# debugging_tool = 'line-sim'
+debugging_tool = 'phone'
+
 if os.path.isfile('.env') or os.path.isfile('env'):
     print('found .env. So it should be a local environment.')
     ENV = load_dotenv('.env')
@@ -14,6 +18,7 @@ if os.path.isfile('.env') or os.path.isfile('env'):
         ENV = load_dotenv('env')
 else:
     print('Cannot find .env. So it should be on the cloud.')
+    debugging_tool = 'phone'
 
 CHANNEL_SECRET = os.getenv('CHANNEL_SECRET')
 CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN')
@@ -27,10 +32,6 @@ if CHANNEL_ACCESS_TOKEN is None:
 
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
-
-# change below if using line-simulator or it would not work
-debugging_tool = 'line-sim'
-# debugging_tool = 'phone'
 
 if debugging_tool == 'phone':
     line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
