@@ -115,7 +115,7 @@ def address_change_flow(event, user_text):
                 MessageTemplateAction(label='住所変更と同時に○○', text='住所変更と同時に○○'),
             ]),
             CarouselColumn(text='お選びください', title='住所関連でお探しですか？', actions=[
-                MessageTemplateAction(label='住所変更と同時に他課', text='住所変更と同時に他課'),
+                MessageTemplateAction(label='住所変更と同時にこれら以外', text='住所変更と同時にこれら以外'),
                 MessageTemplateAction(label='ダミー', text='ダミー'),
                 MessageTemplateAction(label='ダミー', text='ダミー'),
             ]),
@@ -188,8 +188,13 @@ def address_change_flow(event, user_text):
         )
         
     if user_text in ['法定代理人が転入手続きをする']:
-        reply_text = '''（親権者）戸籍謄本（平日の昼間の場合は不要）
-窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。
+        reply_text = '''（親権者）
+戸籍謄本（平日の昼間の場合は不要）
+窓口に来た人の本人確認書類（※１）、
+世帯全員分の通知カード（個人番号カード所得者を除く）、
+個人番号カード・住基カード（取得者のみ）、
+転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。
+
 外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です。
 （成年後見人）登記事項証明書
 窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。
@@ -261,11 +266,15 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転入手続きをするのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本（平日の昼間の場合は不要）
+        reply_text = '''（親権者）
+戸籍謄本（平日の昼間の場合は不要）
 窓口に来た人の本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
 つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
 外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
-（成年後見人）登記事項証明書が必要です。
+
+
+（成年後見人）
+登記事項証明書が必要です。
 窓口に来た人の本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
 つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
 外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
@@ -278,7 +287,9 @@ def address_change_flow(event, user_text):
     if user_text in ['転入手続きをするのは親族や養護施設などの職員']:
         reply_text = '''施設などの職員証。親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等
 窓口に来た人の本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
+
 つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
+
 外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
 '''
         line_bot_api.reply_message(
@@ -334,8 +345,12 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転出手続きをするのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本、窓口に来た人の本人確認書類が必要です。（平日の昼間の来庁の場合、本籍地へ電話照会するため、戸籍謄本不要です。）
-（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''（親権者）
+戸籍謄本、窓口に来た人の本人確認書類が必要です。
+（平日の昼間の来庁の場合、本籍地へ電話照会するため、戸籍謄本不要です。）
+
+（成年後見人）
+登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -400,10 +415,14 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転居手続きをされるのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本　（平日の昼間の場合不要です）
+        reply_text = '''（親権者）
+戸籍謄本　（平日の昼間の場合不要です）
 窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
-（成年後見人）登記事項証明書が必要です。
+
+
+（成年後見人）
+登記事項証明書が必要です。
 窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
         line_bot_api.reply_message(
@@ -420,24 +439,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-        # description_of_options = '''
-        # 世帯分離：
-        # 1つの世帯を住所変更せずに2つに分ける。　※生計が別ですか?他課に相談済ですか？（保険料を安くするためなどの理由では受付できません）
-        #
-        # 世帯合併：
-        # 2つの世帯を住所変更せずに1つにする。　※生計が同じですか?
-        #
-        # 世帯主変更：
-        # 世帯主を変更する　※主に生計を立てるほうが変更になるということですか?
-        #
-        # 世帯構成変更：
-        # 同住所に存在する2つの世帯間で、人を異動させる。住所は変更されないので転居ではない。
-        # '''
-        # messages = [TextSendMessage(text=description_of_options), template_message]
-        # line_bot_api.reply_message(event.reply_token, messages)
-
-
-
     if user_text in ['住所を変えず、世帯を変更']:
         pretext = ''
         buttons_template = ButtonsTemplate(
@@ -450,7 +451,21 @@ def address_change_flow(event, user_text):
         template_message = TemplateSendMessage(
             alt_text=f'{pretext}以下のどれでしょうか？', template=buttons_template
         )
-        line_bot_api.reply_message(event.reply_token, template_message)
+        description_of_options = '''
+        世帯分離：
+        1つの世帯を住所変更せずに2つに分ける。　※生計が別ですか?他課に相談済ですか？（保険料を安くするためなどの理由では受付できません）
+
+        世帯合併：
+        2つの世帯を住所変更せずに1つにする。　※生計が同じですか?
+
+        世帯主変更：
+        世帯主を変更する　※主に生計を立てるほうが変更になるということですか?
+
+        世帯構成変更：
+        同住所に存在する2つの世帯間で、人を異動させる。住所は変更されないので転居ではない。
+        '''
+        messages = [TextSendMessage(text=description_of_options), template_message]
+        line_bot_api.reply_message(event.reply_token, messages)
 
     if user_text in ['世帯分離']:
         pretext = '世帯分離手続きをするのは'
@@ -500,8 +515,11 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['世帯分離手続きをするのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
-（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''（親権者）
+戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+
+（成年後見人）
+登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -563,8 +581,11 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['世帯合併手続きをするのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
-（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''（親権者）
+戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+
+（成年後見人）
+登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -626,8 +647,11 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['世帯主変更するのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
-（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''（親権者）
+戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+
+（成年後見人）
+登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -689,8 +713,11 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['世帯構成変更手続きをするのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
-（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''（親権者）
+戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+
+（成年後見人）
+登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -756,7 +783,12 @@ def address_change_flow(event, user_text):
         )
         
     if user_text in ['住所修正手続きをするのは法定代理人']:
-        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+        reply_text = '''委任状（※２）、
+        窓口に来た人の本人確認書類（※１）、
+        世帯全員分の通知カード（個人番号カード所得者を除く）、
+        個人番号カード・住基カード（取得者のみ）
+        が必要です。
+
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
@@ -826,7 +858,10 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転出取り消し手続きをされるのは法定代理人']:
-        reply_text = '''窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+        reply_text = '''窓口に来た人の本人確認書類（※１）、
+        世帯全員分の通知カード（個人番号カード所得者を除く）、
+        個人番号カード・住基カード（取得者のみ）が必要です。
+
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
 '''
         line_bot_api.reply_message(
@@ -890,8 +925,12 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['再交付手続きをされるのは法定代理人']:
-        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
-（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''
+（親権者）
+戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+
+（成年後見人）
+登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
