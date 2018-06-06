@@ -33,7 +33,7 @@ canvas = Image.new('RGB', small_image_res, (255, 255, 255))
 border_image_res = (2500, 1)
 border = Image.new('RGB', border_image_res, (2, 24, 255))
 
-trigger_words = ['マイナンバー関連', '印鑑登録関連', '各種証明書', '4',
+trigger_words = ['マイナンバー関連', '印鑑登録関連', '各種証明書', '住所異動',
                  '5', '6', '計測スタート', '計測終了']
 column_count = 4
 row_count = 2

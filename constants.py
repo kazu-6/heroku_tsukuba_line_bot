@@ -29,8 +29,8 @@ line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
 # change below if using line-simulator or it would not work
-# debugging_tool = 'line-sim'
-debugging_tool = 'phone'
+debugging_tool = 'line-sim'
+# debugging_tool = 'phone'
 
 if debugging_tool == 'phone':
     line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
@@ -41,6 +41,7 @@ elif debugging_tool == 'line-sim':
 static_tmp_path = os.path.join(os.path.dirname(__file__), 'static', 'tmp')
 
 rmm = RichMenuManager(CHANNEL_ACCESS_TOKEN)
+
 
 # function for create tmp dir for download content
 def make_static_tmp_dir():

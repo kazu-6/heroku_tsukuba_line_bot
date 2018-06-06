@@ -10,11 +10,10 @@ from linebot.exceptions import (
 )
 
 from constants import line_bot_api, handler, get_text_template_for_id, \
-    get_text_template_for_delegate, CHANNEL_ACCESS_TOKEN, rmm
+    get_text_template_for_delegate, rmm
 
 from sample_handler import (
-    text_message_handler_sample, add_group_event_handler,
-    add_multimedia_event_handler
+    add_group_event_handler, add_multimedia_event_handler
 )
 
 # noinspection PyUnresolvedReferences
@@ -31,10 +30,9 @@ from linebot.models import (
     # RichMenu, RichMenuBound, RichMenuArea
 )
 
-from richmenu import RichMenu, RichMenuManager
+# from richmenu import RichMenu, RichMenuManager
 
 app = Flask(__name__)
-
 
 # before deploying, turn debug device to phone
 
@@ -74,6 +72,8 @@ def handle_text_message(event):
     kei_car_certificate_flow(event, user_text)
 
     certificates_flow(event, user_text)
+    
+    address_change_flow(event, user_text)
 
     if user_text in ['計測開始', '計測スタート']:
         now = datetime.datetime.now()
@@ -100,9 +100,869 @@ def handle_text_message(event):
         )
 
 
+def address_change_flow(event, user_text):
+
+    if user_text in ['住所異動']:
+        carousel_template = CarouselTemplate(columns=[
+            CarouselColumn(text='お選びください', title='住所関連でお探しですか？', actions=[
+                MessageTemplateAction(label='住所変更の際の持ち物', text='住所変更の際の持ち物'),
+                MessageTemplateAction(label='住所を変えず、世帯を変更', text='住所を変えず、世帯を変更'),
+                MessageTemplateAction(label='住所修正（地番変更など）', text='住所修正（地番変更など）'),
+            ]),
+            CarouselColumn(text='お選びください', title='住所関連でお探しですか？', actions=[
+                MessageTemplateAction(label='転出届を取り消したい', text='転出届を取り消したい'),
+                MessageTemplateAction(label='転出証明を再交付', text='転出証明を再交付'),
+                MessageTemplateAction(label='住所変更と同時に○○', text='住所変更と同時に○○'),
+            ]),
+            CarouselColumn(text='お選びください', title='住所関連でお探しですか？', actions=[
+                MessageTemplateAction(label='住所変更と同時に他課', text='住所変更と同時に他課'),
+                MessageTemplateAction(label='ダミー', text='ダミー'),
+                MessageTemplateAction(label='ダミー', text='ダミー'),
+            ]),
+        ])
+        template_message = TemplateSendMessage(
+            alt_text='Carousel alt text', template=carousel_template)
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['住所変更の際の持ち物']:
+        buttons_template = ButtonsTemplate(
+            title='転入or転出？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入（市外から）', text='転入（市外から）'),
+                MessageTemplateAction(label='転入（海外から）', text='転入（海外から）'),
+                MessageTemplateAction(label='転出（市外へ）', text='転出（市外へ）'),
+                MessageTemplateAction(label='転居（市内）', text='転居（市内）'),
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='転入or転出？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転入（市外から）']:
+        buttons_template = ButtonsTemplate(
+            title='転入手続きをされるのはどなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text='転入手続きをするのは本人'),
+                MessageTemplateAction(label='本人以外', text='転入手続きをするのは本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='転入手続きされるのはどなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転入手続きをするのは本人']:
+        reply_text = '本人確認書類、世帯全員分の通知カード（個人番号カード所得者を除く）、' \
+                     '個人番号カード、住基カード（取得者のみ）、転出証明書（個人番号カード、住基カードで' \
+                     '転出届をした人は、個人番号カード・住基カード）が必要です。\n\n転入者全員の在留カードまたは外国人登録証明書が必要です。'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['転入手続きをするのは本人以外']:
+        buttons_template = ButtonsTemplate(
+            title='転入手続きをするのはどなたでしょうか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人とつくば市で同一世帯となる人', text='本人とつくば市で同一世帯となる人が転入手続きをする'),
+                MessageTemplateAction(label='任意代理人', text='任意代理人が転入手続きをする'),
+                MessageTemplateAction(label='法定代理人', text='法定代理人が転入手続きをする'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text='親族や養護施設などの職員が転入手続きをする'),
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='転入手続きをするのはどなたでしょうか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['本人とつくば市で同一世帯となる人が転入手続きをする']:
+        reply_text = '窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、' \
+                     '転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です。'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['任意代理人が転入手続きをする']:
+        reply_text = '委任状（※２）窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、' \
+                     '転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。任意代理人のマイナンバーカードの継続は照会書になり、' \
+                     '後日来庁が必要です。外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です。'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['法定代理人が転入手続きをする']:
+        reply_text = '''（親権者）戸籍謄本（平日の昼間の場合は不要）
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。
+外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です。
+（成年後見人）登記事項証明書
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。
+外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['親族や養護施設などの職員が転入手続きをする']:
+        reply_text = '''施設などの職員証。親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。
+外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転入（海外から）']:
+        buttons_template = ButtonsTemplate(
+            title='転入手続きをされるのはどなたでしょうか？', text='お選びください', actions=[
+                MessageTemplateAction(label='異動者本人', text='転入手続きをするのは異動者本人'),
+                MessageTemplateAction(label='異動者本人以外', text='転入手続きをするのは異動者本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='転入手続きをされるのはどなたでしょうか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転入手続きをするのは異動者本人']:
+        reply_text = '本人確認書類が必要です。'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転入手続きをするのは異動者本人以外']:
+        buttons_template = ButtonsTemplate(
+            title='手続きするのはどなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人とつくば市で同一世帯となる人', text='転入手続きをするのは本人とつくば市で同一世帯となる人'),
+                MessageTemplateAction(label='任意代理人', text='転入手続きをするのは任意代理人'),
+                MessageTemplateAction(label='法定代理人', text='転入手続きをするのは法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text='転入手続きをするのは親族や養護施設などの職員'),
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='手続きするのはどなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転入手続きをするのは本人とつくば市で同一世帯となる人']:
+        reply_text = '''本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
+つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
+外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転入手続きをするのは任意代理人']:
+        reply_text = '''委任状（※２）、本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
+つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
+外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転入手続きをするのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本（平日の昼間の場合は不要）
+窓口に来た人の本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
+つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
+外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+（成年後見人）登記事項証明書が必要です。
+窓口に来た人の本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
+つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
+外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転入手続きをするのは親族や養護施設などの職員']:
+        reply_text = '''施設などの職員証。親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等
+窓口に来た人の本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
+つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
+外国人住民の場合、転入者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出（市外へ）']:
+        pretext = '転出手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}異動者本人でしょうか？', text='お選びください', actions=[
+                MessageTemplateAction(label='異動者本人', text=f'{pretext}異動者本人'),
+                MessageTemplateAction(label='異動者本人以外', text=f'{pretext}異動者本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}異動者本人でしょうか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転出手続きをするのは異動者本人']:
+        reply_text = '''本人確認書類が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出手続きをするのは異動者本人以外']:
+        pretext = '転出手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人とつくば市で同一世帯', text=f'{pretext}本人とつくば市で同一世帯'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転出手続きをするのは本人とつくば市で同一世帯']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出手続きをするのは任意代理人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出手続きをするのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本、窓口に来た人の本人確認書類が必要です。（平日の昼間の来庁の場合、本籍地へ電話照会するため、戸籍謄本不要です。）
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出手続きをするのは親族や養護施設などの職員']:
+        reply_text = '''（親権者）戸籍謄本、窓口に来た人の本人確認書類が必要です。（平日の昼間の来庁の場合、本籍地へ電話照会するため、戸籍謄本不要です。）
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転居（市内）']:
+        pretext = '転居手続きをされるのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}異動者本人ですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='異動者本人', text=f'{pretext}異動者本人'),
+                MessageTemplateAction(label='異動者本人以外', text=f'{pretext}異動者本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}異動者本人ですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転居手続きをされるのは異動者本人']:
+        reply_text = '''本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転居手続きをされるのは異動者本人以外']:
+        pretext = '転居手続きをされるのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯となる人', text=f'{pretext}本人と同一世帯となる人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転居手続きをされるのは本人と同一世帯となる人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転居手続きをされるのは任意代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転居手続きをされるのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本　（平日の昼間の場合不要です）
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+（成年後見人）登記事項証明書が必要です。
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転居手続きをされるのは親族や養護施設などの職員']:
+        reply_text = '''施設等の職員証。親族の場合、本人が来庁不可能なことを証明するもの（施設入居・入院していることを証明するもの、介護認定等
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+        # description_of_options = '''
+        # 世帯分離：
+        # 1つの世帯を住所変更せずに2つに分ける。　※生計が別ですか?他課に相談済ですか？（保険料を安くするためなどの理由では受付できません）
+        #
+        # 世帯合併：
+        # 2つの世帯を住所変更せずに1つにする。　※生計が同じですか?
+        #
+        # 世帯主変更：
+        # 世帯主を変更する　※主に生計を立てるほうが変更になるということですか?
+        #
+        # 世帯構成変更：
+        # 同住所に存在する2つの世帯間で、人を異動させる。住所は変更されないので転居ではない。
+        # '''
+        # messages = [TextSendMessage(text=description_of_options), template_message]
+        # line_bot_api.reply_message(event.reply_token, messages)
+
+
+
+    if user_text in ['住所を変えず、世帯を変更']:
+        pretext = ''
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}以下のどれでしょうか？', text='お選びください', actions=[
+                MessageTemplateAction(label='世帯分離', text=f'{pretext}世帯分離'),
+                MessageTemplateAction(label='世帯合併', text=f'{pretext}世帯合併'),
+                MessageTemplateAction(label='世帯主変更', text=f'{pretext}世帯主変更'),
+                MessageTemplateAction(label='世帯構成変更', text=f'{pretext}世帯構成変更')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}以下のどれでしょうか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯分離']:
+        pretext = '世帯分離手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}本人ですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text=f'{pretext}本人'),
+                MessageTemplateAction(label='本人以外', text=f'{pretext}本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}本人ですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯分離手続きをするのは本人']:
+        reply_text = '''窓口に来た人の本人確認書類が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯分離手続きをするのは本人以外']:
+        pretext = '世帯分離手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯の人', text=f'{pretext}本人と同一世帯の人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯分離手続きをするのは本人と同一世帯の人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯分離手続きをするのは任意代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯分離手続きをするのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯分離手続きをするのは親族や養護施設などの職員']:
+        reply_text = '''（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）が必要です。
+（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯合併']:
+        pretext = '世帯合併手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}本人ですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text=f'{pretext}本人'),
+                MessageTemplateAction(label='本人以外', text=f'{pretext}本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}本人ですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯合併手続きをするのは本人']:
+        reply_text = '''窓口に来た人の本人確認書類が必要です'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯合併手続きをするのは本人以外']:
+        pretext = '世帯合併手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯の人', text=f'{pretext}本人と同一世帯の人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯合併手続きをするのは本人と同一世帯の人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯合併手続きをするのは任意代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯合併手続きをするのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯合併手続きをするのは親族や養護施設などの職員']:
+        reply_text = '''（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）が必要です。
+（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯主変更']:
+        pretext = '世帯主変更するのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text=f'{pretext}本人'),
+                MessageTemplateAction(label='本人以外', text=f'{pretext}本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯主変更するのは本人']:
+        reply_text = '''窓口に来た人の本人確認書類が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯主変更するのは本人以外']:
+        pretext = '世帯主変更するのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯の人', text=f'{pretext}本人と同一世帯の人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯主変更するのは本人と同一世帯の人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯主変更するのは任意代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯主変更するのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯主変更するのは親族や養護施設などの職員']:
+        reply_text = '''（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）が必要です。
+（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯構成変更']:
+        pretext = '世帯構成変更手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text=f'{pretext}本人'),
+                MessageTemplateAction(label='本人以外', text=f'{pretext}本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯構成変更手続きをするのは本人']:
+        reply_text = '''窓口に来た人の本人確認書類が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯構成変更手続きをするのは本人以外']:
+        pretext = '世帯構成変更手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯の人', text=f'{pretext}本人と同一世帯の人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['世帯構成変更手続きをするのは本人と同一世帯の人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯構成変更手続きをするのは任意代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯構成変更手続きをするのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['世帯構成変更手続きをするのは親族や養護施設などの職員']:
+        reply_text = '''（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）が必要です。
+（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['住所修正（地番変更など）']:
+        pretext = '住所修正手続きをされるのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}居住者本人ですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='居住者本人', text=f'{pretext}居住者本人'),
+                MessageTemplateAction(label='居住者本人以外', text=f'{pretext}居住者本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}居住者本人ですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['住所修正手続きをされるのは居住者本人']:
+        reply_text = '''本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['住所修正手続きをされるのは居住者本人以外']:
+        pretext = '住所修正手続きをするのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯となる人', text=f'{pretext}本人と同一世帯となる人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護などの職員', text=f'{pretext}親族や養護などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['住所修正手続きをするのは本人と同一世帯となる人']:
+        reply_text = '''本人と同一世帯の人（転居前・転居後どちらでも）
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['住所修正手続きをするのは任意代理人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['住所修正手続きをするのは法定代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['住所修正手続きをするのは親族や養護などの職員']:
+        reply_text = '''（親権者）戸籍謄本　（平日の昼間の場合不要です）
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+（成年後見人）登記事項証明書が必要です。
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['転出届を取り消したい']:
+        pretext = '取り消して続きをされるのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}転出者本人ですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text=f'{pretext}本人'),
+                MessageTemplateAction(label='本人以外', text=f'{pretext}本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}転出者本人ですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['取り消して続きをされるのは本人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）、転出証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['取り消して続きをされるのは本人以外']:
+        pretext = '転出取り消し手続きをされるのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯の人', text=f'{pretext}本人と同一世帯の人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['転出取り消し手続きをされるのは本人と同一世帯の人']:
+        reply_text = '''本人と同一世帯の人（転居前・転居後どちらでも）
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出取り消し手続きをされるのは任意代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出取り消し手続きをされるのは法定代理人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出取り消し手続きをされるのは親族や養護施設などの職員']:
+        reply_text = '''（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
+（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['転出証明を再交付']:
+        pretext = '再交付手続きをされるのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}異動者本人ですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text=f'{pretext}本人'),
+                MessageTemplateAction(label='本人以外', text=f'{pretext}本人以外')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}異動者本人ですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['再交付手続きをされるのは本人']:
+        reply_text = '''窓口に来た人の本人確認書類が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['再交付手続きをされるのは本人以外']:
+        pretext = '再交付手続きをされるのは'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}どなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人と同一世帯の人', text=f'{pretext}本人と同一世帯の人'),
+                MessageTemplateAction(label='任意代理人', text=f'{pretext}任意代理人'),
+                MessageTemplateAction(label='法定代理人', text=f'{pretext}法定代理人'),
+                MessageTemplateAction(label='親族や養護施設などの職員', text=f'{pretext}親族や養護施設などの職員')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}どなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['再交付手続きをされるのは本人と同一世帯の人']:
+        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['再交付手続きをされるのは任意代理人']:
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['再交付手続きをされるのは法定代理人']:
+        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）が必要です。
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['再交付手続きをされるのは親族や養護施設などの職員']:
+        reply_text = '''（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）が必要です。
+（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）が必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['住所変更と同時に○○']:
+        pretext = '住所変更と同時に'
+        carousel_template = CarouselTemplate(columns=[
+            CarouselColumn(title=f'{pretext}されたいことはどれですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='住民票の発行', text=f'{pretext}住民票の発行'),
+                MessageTemplateAction(label='税証明書', text=f'{pretext}税証明書'),
+                MessageTemplateAction(label='印鑑登録', text=f'{pretext}印鑑登録'),
+            ]),
+            CarouselColumn(text='お選びください', title=f'{pretext}されたいことはどれですか？', actions=[
+                MessageTemplateAction(label='印鑑証明', text=f'{pretext}印鑑証明'),
+                MessageTemplateAction(label='通知カードの再発行', text=f'{pretext}通知カードの再発行'),
+                MessageTemplateAction(label='マイナンバーカードの申請', text=f'{pretext}マイナンバーカードの申請'),
+            ]),
+            CarouselColumn(text='お選びください', title=f'{pretext}されたいことはどれですか？', actions=[
+                MessageTemplateAction(label='これら以外', text=f'{pretext}これら以外'),
+                MessageTemplateAction(label='ダミー', text=f'ダミー'),
+                MessageTemplateAction(label='ダミー', text=f'ダミー'),
+            ]),
+        ])
+        template_message = TemplateSendMessage(
+            alt_text='Carousel alt text', template=carousel_template)
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in [f'住所変更と同時に通知カードの再発行', f'住所変更と同時にマイナンバーカードの申請']:
+        reply_text = '''メニューから、マイナンバー関連を選んで、欲しい情報を選んでください。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['住所変更と同時に印鑑証明']:
+        reply_text = '''（市内異動）すでに印鑑登録をしているのであれば、住所変更をした時点で自動的に証明書に記載される住所が変更される。印鑑登録証と本人確認書類（※１）が必要。
+
+
+（市外からの異動）印鑑登録をすればできる。登録したい印鑑と写真付き本人確認書類（運転免許証やパスポート等）が必要
+
+詳細は印鑑登録関連のフローにて
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+
+
+    # 未実装
+    if user_text in [f'住所変更と同時にこれら以外']:
+        reply_text = '''担当の部署につないでください。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
 def certificates_flow(event, user_text):
     # q1
-    if user_text in ['各種証明書']:
+    if user_text in ['各種証明書','住所変更と同時に税証明書']:
         carousel_template = CarouselTemplate(columns=[
             CarouselColumn(text='お探しなのはどれでしょう？', title='お選びください。', actions=[
                 MessageTemplateAction(label='不在住所証明書・不在籍証明書', text='不在住所証明書・不在籍証明書'),
@@ -123,6 +983,11 @@ def certificates_flow(event, user_text):
                 MessageTemplateAction(label='合併証明', text='合併証明'),
                 MessageTemplateAction(label='住民票', text='住民票がほしい'),
                 MessageTemplateAction(label='軽自動車用住所証明書', text='軽自動車用住所証明書がほしい'),
+            ]),
+            CarouselColumn(text='お探しなのはどれでしょう？', title='お選びください。', actions=[
+                MessageTemplateAction(label='納税証明書', text='納税証明書'),
+                MessageTemplateAction(label='課税/非課税/所得証明', text='課税/非課税/所得証明'),
+                MessageTemplateAction(label='資産税証明', text='資産税証明'),
             ]),
         ])
         template_message = TemplateSendMessage(
@@ -155,7 +1020,7 @@ def certificates_flow(event, user_text):
                                       text='親族（本人が死亡しており、直系の血族もいない場合）が戸籍系書類をほしい。'),
                 MessageTemplateAction(label='ダミー', text='このボタンは、ボタンの数を揃えるためのダミーです。')
             ]),
-            CarouselColumn(text='ほしいのはど？', title='お選びください', actions=[
+            CarouselColumn(text='ほしいのはどなたですか？', title='お選びください', actions=[
                 MessageTemplateAction(label='特定事務受給者', text='特定事務時給者が'),
                 MessageTemplateAction(label='国/地方公共団体職員', text='国・地方公共団体の機関の職員からの請求'),
                 MessageTemplateAction(label='ダミー', text='このボタンは、ボタンの数を揃えるためのダミーです。')
@@ -372,10 +1237,195 @@ def certificates_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
+    if user_text in ['納税証明書']:
+
+        messages = [TextSendMessage(text='細かい質問があったら、納税課に繋ぐ。1通200円。（軽自動車は無料。）')]
+
+        buttons_template = ButtonsTemplate(
+            title='どなたが必要ですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text='本人が納税証明書をほしい'),
+                MessageTemplateAction(label='本人と同一世帯の人', text='本人と同一世帯の人が納税証明書をほしい'),
+                MessageTemplateAction(label='任意代理人', text='任意代理人が納税証明書をほしい'),
+                MessageTemplateAction(label='軽自動車税納税証明書', text='軽自動車税納税証明書'),
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='どなたが必要ですか？', template=buttons_template
+        )
+        messages.append(template_message)
+        line_bot_api.reply_message(event.reply_token, messages)
+
+    if user_text in ['本人が納税証明書をほしい']:
+        reply_text = '窓口に来た人の本人確認書類が必要です。'
+        department_to_connect = "納税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+    if user_text in ['本人と同一世帯の人が納税証明書をほしい']:
+        reply_text = '窓口に来た人の本人確認書類が必要です。\n市街に転出している場合は、委任状を要してもらう案内をする。'
+        department_to_connect = "納税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['任意代理人が納税証明書をほしい']:
+        reply_text = '委任状と、窓口に来た人の本人確認書類が必要です。'
+        department_to_connect = "納税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['軽自動車税納税証明書']:
+        buttons_template = ButtonsTemplate(
+            title='証明書をほしいのはどなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text='本人が軽自動車税納税証明をほしい'),
+                MessageTemplateAction(label='本人以外', text='本人以外が軽自動車税納税証明をほしい。'),
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='証明書をほしいのはどなたですか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['本人が軽自動車税納税証明をほしい']:
+        reply_text = '窓口に来た人の本人確認書類と自動車のナンバーが必要です。'
+        department_to_connect = "納税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['本人以外が軽自動車税納税証明をほしい。']:
+        reply_text = '該当の車の車検証（コピーでも可）、窓口に来た人の本人確認書類が必要です。'
+        department_to_connect = "納税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['課税/非課税/所得証明']:
+        buttons_template = ButtonsTemplate(
+            title='証明書をほしいのはどなたですか？', text='お選びください', actions=[
+                MessageTemplateAction(label='本人', text='本人が課税/非課税/所得証明をほしい'),
+                MessageTemplateAction(label='本人と同一世帯の人', text='本人と同一世帯の人が課税/非課税/所得証明'),
+                MessageTemplateAction(label='任意代理人', text='任意代理人が課税/非課税/所得証明をほしい'),
+                MessageTemplateAction(label='事業所所在証明', text='事業所所在証明'),
+            ])
+        template_message = TemplateSendMessage(
+            alt_text='証明書をほしいのはどなたですか？', template=buttons_template
+        )
+        messages = [TextSendMessage(text='細かい質問があったら、市民税課に繋ぐ。1通200円。（軽自動車は無料。）'), template_message]
+        line_bot_api.reply_message(event.reply_token, messages)
+
+    if user_text in ['本人が課税/非課税/所得証明をほしい']:
+        reply_text = '窓口に来た人の本人確認書類が必要です。'
+        department_to_connect = "市民税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['本人と同一世帯の人が課税/非課税/所得証明']:
+        reply_text = '窓口に来た人の本人確認書類が必要です。\n市街に転出している場合は、現在同一世帯であることが証明できる住民票などがなければ委任状が必要。ない場合は市民税課に相談に行くよう案内。'
+        department_to_connect = "市民税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['任意代理人が課税/非課税/所得証明をほしい']:
+        reply_text = '委任状、窓口に来た人の本人確認書類が必要です。'
+        department_to_connect = "市民税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['事業所所在証明']:
+        reply_text = '窓口に来た人の本人確認書類が必要です。'
+        department_to_connect = "市民税課"
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
+        )
+
+    if user_text in ['資産税証明']:
+        carousel_template = CarouselTemplate(columns=[
+            CarouselColumn(text='お選びください', title='お求めなのはどれでしょう？', actions=[
+                MessageTemplateAction(label='固定資産評価・公果証明・名寄帳の写し', text='固定資産評価・公果証明・名寄帳の写し'),
+                MessageTemplateAction(label='固定資産課税台帳記載事項証明', text='固定資産課税台帳記載事項証明'),
+                MessageTemplateAction(label='公課証明', text='公課証明'),
+            ]),
+            CarouselColumn(text='お選びください', title='お求めなのはどれでしょう？', actions=[
+                MessageTemplateAction(label='現況証明・家屋滅失証明', text='現況証明・家屋滅失証明'),
+                MessageTemplateAction(label='住宅用家屋証明', text='住宅用家屋証明'),
+                MessageTemplateAction(label='地番図・航空写真', text='地番図・航空写真'),
+            ]),
+            CarouselColumn(text='お選びください', title='お求めなのはどれでしょう？', actions=[
+                MessageTemplateAction(label='現況証明・家屋滅失証明', text='現況証明・家屋滅失証明'),
+                MessageTemplateAction(label='ダミー', text='ダミー'),
+                MessageTemplateAction(label='ダミー', text='ダミー'),
+            ]),
+        ])
+        template_message = TemplateSendMessage(
+            alt_text='Carousel alt text', template=carousel_template)
+        messages = [TextSendMessage(text="細かい質問は資産税課へ。（申請者区分に応じて必要書類がことなるので、資産税課に繋ぐ。あくまでも照明の種類と申請できる人と手数料までの案内。）"), template_message]
+        line_bot_api.reply_message(event.reply_token, messages)
+
+    if user_text in ['固定資産評価・公果証明・名寄帳の写し']:
+        reply_text = '申請できるのは1月1日時点の所有者または所有者の相続人'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect="資産税課")
+        )
+
+    if user_text in ['固定資産課税台帳記載事項証明']:
+        reply_text = '申請できるのは、所有者、所有者の相続人、貸借人、管財人、訴訟提起者'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect="資産税課")
+        )
+
+    if user_text in ['公課証明']:
+        reply_text = '申請できるのは競売申立人'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect="資産税課")
+        )
+
+    if user_text in ['現況証明・家屋滅失証明']:
+        reply_text = '申請できるのは所有者'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect="資産税課")
+        )
+
+    if user_text in ['住宅用家屋証明']:
+        reply_text = '申請できるのは所有者'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect="資産税課")
+        )
+
+    if user_text in ['地番図・航空写真']:
+        reply_text = '申請できるのはどなたでも'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect="資産税課")
+        )
+
+    if user_text in ['評価額通知書']:
+        reply_text = '申請できるのは法務局からの依頼書をお餅の方'
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text, department_to_connect="資産税課")
+        )
+
 
 def inkan_flow(event, user_text):
     # q1
-    if user_text in ['印鑑登録関連']:
+    if user_text in ['印鑑登録関連', '住所変更と同時に印鑑登録']:
         buttons_template = ButtonsTemplate(
             title='印鑑登録関連の何をお望みですか？', text='お選びください', actions=[
                 MessageTemplateAction(label='印鑑登録証明書がほしい', text='印鑑登録証明書'),
@@ -535,7 +1585,7 @@ def kei_car_certificate_flow(event, user_text):
 
 
 def juminhyou_flow(event, user_text):
-    if user_text in ['住民票がほしい', 'jumin']:
+    if user_text in ['住民票がほしい', 'jumin', '住所変更と同時に住民票の発行']:
         buttons_template = ButtonsTemplate(
             title='住民票がほしい方は本人ですか？', text='お選びください', actions=[
                 MessageTemplateAction(label='本人', text='本人が住民票をほしい'),
@@ -827,7 +1877,7 @@ def my_number_make_flow(event, user_text):
         line_bot_api.reply_message(event.reply_token, template_message)
     if user_text in ['初めてである']:
         buttons_template = ButtonsTemplate(
-            title='本庁舎への来庁は可能ですか？（通知カードに付属する申請書が使える場合もあるが、住所移動や修正などでIDが出回っている場合もあることを考えると最新のIDの取得をしていただいたほうが確実。）',
+            title='本庁舎への来庁は可能ですか？',
             text='お選びください', actions=[
                 MessageTemplateAction(label='本庁舎へ来庁可能', text='本庁舎へ来庁可能'),
                 MessageTemplateAction(label='本庁舎へ来庁不可', text='本庁舎へ来庁不可'),
@@ -1052,7 +2102,7 @@ def my_number_lost_flow(event, user_text):
         )
 
 
-def get_text_send_messages(event, reply_text):
+def get_text_send_messages(event, reply_text, **kwargs):
     messages = [TextSendMessage(text=reply_text)]
 
     if '本人確認書類' in reply_text:
@@ -1061,6 +2111,16 @@ def get_text_send_messages(event, reply_text):
     if '委任状' in reply_text:
         messages.append(get_text_template_for_delegate())
 
+    if "department_to_connect" in kwargs.keys():
+        messages.append(
+            TextSendMessage(text=f'これ以上の質問は{kwargs["department_to_connect"]}につないでください。')
+        )
+
+    return messages
+
+
+def add_message_to_connect_other_department(reply_text):
+    messages = [TextSendMessage(text=reply_text), TextSendMessage(text=f"これ以上の質問は、{reply_text}につないでください。")]
     return messages
 
 
