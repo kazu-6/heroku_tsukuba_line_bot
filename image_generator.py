@@ -34,7 +34,7 @@ border_image_res = (2500, 1)
 border = Image.new('RGB', border_image_res, (2, 24, 255))
 
 trigger_words = ['マイナンバー関連', '印鑑登録関連', '各種証明書', '住所異動',
-                 'ダミー', 'ダミー', '計測スタート', '計測終了']
+                 'ダミー', 'ダミー2', '計測スタート', '計測終了']
 column_count = 4
 row_count = 2
 grid_width = int(small_image_res[0]/column_count)
@@ -76,7 +76,7 @@ user_id = "U0a028f903127e2178bd789b4b4046ba7"
 # print(user_id + ":" + res["richMenuId"])
 #
 #
-rmm.detach(user_id)
-res = rmm.get_applied_menu(user_id)
-print(res)
+# rmm.detach(user_id)
+# res = rmm.get_applied_menu(user_id)
+# print(res)
 

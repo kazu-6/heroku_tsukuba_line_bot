@@ -9,6 +9,8 @@ flask = "*"
 python-dotenv = "*"
 requests = "*"
 pillow = "*"
+"psycopg2-binary" = "*"
+flask-sqlalchemy = "*"
 
 [dev-packages]
 

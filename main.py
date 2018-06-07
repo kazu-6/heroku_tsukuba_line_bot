@@ -2210,7 +2210,7 @@ def handle_follow(event):
 
     line_bot_api.reply_message(
         event.reply_token,
-        TextSendMessage(text='つくば市役所botを友達登録していただきありがとうございます！。'
+        TextSendMessage(text='つくば市役所botを友達登録していただきありがとうございます！'
                              '\n\n下の『問い合わせ分類』から選択肢をお選びください。')
     )
 
