@@ -30,6 +30,11 @@ from linebot.models import (
     # RichMenu, RichMenuBound, RichMenuArea
 )
 
+import os
+import psycopg2
+
+DATABASE_URL = os.environ['DATABASE_URL']
+
 # from richmenu import RichMenu, RichMenuManager
 
 app = Flask(__name__)
@@ -1713,7 +1718,7 @@ def juminhyou_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
     if user_text in ['親族（除票の申請で本人がすでに死亡しており、本人が単身世帯だったとき）']:
-        reply_text = '親族であることの証明（戸籍謄本など。申請者の本籍がつくば市の場合は不要。）窓口に来た人の方んにん確認書類が必要です。'
+        reply_text = '親族であることの証明（戸籍謄本など。申請者の本籍がつくば市の場合は不要。）窓口に来た人の方の本人確認書類が必要です。'
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -1744,7 +1749,7 @@ def my_number_others_flow(event, user_text):
         carousel_template = CarouselTemplate(columns=[
             CarouselColumn(text='お選びください', title='マイナンバー関連', actions=[
                 MessageTemplateAction(label='個人番号/通知カード紛失', text='マイナンバーカード・通知カードを紛失した'),
-                MessageTemplateAction(label='マイナンバーの登録', text='マイナンバーの登録をしたい'),
+                MessageTemplateAction(label='マイナンバーを知りたい', text='マイナンバーを知りたい'),
                 MessageTemplateAction(label='"支所"で可能かどうか', text='市役所が遠いから支所でマイナンバー手続きをしたい'),
             ]),
             CarouselColumn(text='お選びください', title='マイナンバー関連', actions=[
@@ -1860,7 +1865,7 @@ def my_number_others_flow(event, user_text):
 
 
 def my_number_make_flow(event, user_text):
-    if user_text in ['マイナンバーの登録をしたい', 'make']:
+    if user_text in ['マイナンバーを知りたい', 'make']:
         buttons_template = ButtonsTemplate(
             title='１ヶ月以内に必要ですか？', text='お選びください', actions=[
                 MessageTemplateAction(label='必要です。', text='必要です。'),
