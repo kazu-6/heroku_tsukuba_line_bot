@@ -8,8 +8,8 @@ from linebot.models import TextSendMessage
 from richmenu import RichMenuManager, RichMenu
 
 # change below if using line-simulator or it would not work
-debugging_tool = 'line-sim'
-# debugging_tool = 'phone'
+# debugging_tool = 'line-sim'
+debugging_tool = 'phone'
 
 if os.path.isfile('.env') or os.path.isfile('env'):
     print('found .env. So it should be a local environment.')

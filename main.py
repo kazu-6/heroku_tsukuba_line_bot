@@ -452,17 +452,17 @@ def address_change_flow(event, user_text):
             alt_text=f'{pretext}以下のどれでしょうか？', template=buttons_template
         )
         description_of_options = '''
-        世帯分離：
-        1つの世帯を住所変更せずに2つに分ける。　※生計が別ですか?他課に相談済ですか？（保険料を安くするためなどの理由では受付できません）
+世帯分離：
+1つの世帯を住所変更せずに2つに分ける。　※生計が別ですか?他課に相談済ですか？（保険料を安くするためなどの理由では受付できません）
 
-        世帯合併：
-        2つの世帯を住所変更せずに1つにする。　※生計が同じですか?
+世帯合併：
+2つの世帯を住所変更せずに1つにする。　※生計が同じですか?
 
-        世帯主変更：
-        世帯主を変更する　※主に生計を立てるほうが変更になるということですか?
+世帯主変更：
+世帯主を変更する　※主に生計を立てるほうが変更になるということですか?
 
-        世帯構成変更：
-        同住所に存在する2つの世帯間で、人を異動させる。住所は変更されないので転居ではない。
+世帯構成変更：
+同住所に存在する2つの世帯間で、人を異動させる。住所は変更されないので転居ではない。
         '''
         messages = [TextSendMessage(text=description_of_options), template_message]
         line_bot_api.reply_message(event.reply_token, messages)
@@ -808,7 +808,7 @@ def address_change_flow(event, user_text):
         )
         
     if user_text in ['転出届を取り消したい']:
-        pretext = '取り消して続きをされるのは'
+        pretext = '取り消し手続きをされるのは'
         buttons_template = ButtonsTemplate(
             title=f'{pretext}転出者本人ですか？', text='お選びください', actions=[
                 MessageTemplateAction(label='本人', text=f'{pretext}本人'),
@@ -819,14 +819,14 @@ def address_change_flow(event, user_text):
         )
         line_bot_api.reply_message(event.reply_token, template_message)
 
-    if user_text in ['取り消して続きをされるのは本人']:
+    if user_text in ['取り消し手続きをされるのは本人']:
         reply_text = '''窓口に来た人の本人確認書類（※１）、転出証明書が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
         
-    if user_text in ['取り消して続きをされるのは本人以外']:
+    if user_text in ['取り消し手続きをされるのは本人以外']:
         pretext = '転出取り消し手続きをされるのは'
         buttons_template = ButtonsTemplate(
             title=f'{pretext}どなたですか？', text='お選びください', actions=[
@@ -2202,11 +2202,11 @@ def handle_follow(event):
 
     user_id = event.source.user_id
     res = rmm.get_applied_menu(user_id)
+    with open('latest_richmenu.txt','r') as f:
+        latest_richmenu_id = f.readlines()[0]
 
-    if 'richMenuId' not in res.keys():
-        print(rmm.get_list())
-        rm_id = rmm.get_list()['richmenus'][0]['richMenuId']
-        rmm.apply(user_id, rm_id)
+    if 'richMenuId' not in res.keys() or res['richMenuId'] != latest_richmenu_id:
+        rmm.apply(user_id, latest_richmenu_id)
 
     line_bot_api.reply_message(
         event.reply_token,
