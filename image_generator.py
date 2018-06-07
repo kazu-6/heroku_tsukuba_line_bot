@@ -34,7 +34,7 @@ border_image_res = (2500, 1)
 border = Image.new('RGB', border_image_res, (2, 24, 255))
 
 trigger_words = ['マイナンバー関連', '印鑑登録関連', '各種証明書', '住所異動',
-                 '5', '6', '計測スタート', '計測終了']
+                 'ダミー', 'ダミー', '計測スタート', '計測終了']
 column_count = 4
 row_count = 2
 grid_width = int(small_image_res[0]/column_count)
@@ -43,6 +43,7 @@ grid_height = math.ceil(small_image_res[1]/row_count)
 # Setup RichMenuManager
 rmm = RichMenuManager(CHANNEL_ACCESS_TOKEN)
 print(rmm.get_list())
+print(rmm.get_list()['richmenus'][0]['richMenuId'])
 rmm.remove_all()
 print("richmenu images deleted")
 
@@ -65,8 +66,6 @@ canvas.save('richmenu_init.jpg', 'JPEG', quality=100, optimize=True)
 res = rmm.register(rm, "./richmenu_init.jpg")
 richmenu_id = res["richMenuId"]
 print("Registered as " + richmenu_id)
-with open('latest_richmenu.txt', 'w') as f:
-    f.write(f'{richmenu_id}')
 
 
 # Apply to user
@@ -78,6 +77,6 @@ user_id = "U0a028f903127e2178bd789b4b4046ba7"
 #
 #
 rmm.detach(user_id)
-# res = rmm.get_applied_menu(user_id)
-# print(res)
+res = rmm.get_applied_menu(user_id)
+print(res)
 

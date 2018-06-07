@@ -2202,10 +2202,10 @@ def handle_follow(event):
 
     user_id = event.source.user_id
     res = rmm.get_applied_menu(user_id)
-    with open('latest_richmenu.txt','r') as f:
-        latest_richmenu_id = f.readlines()[0]
+    latest_richmenu_id = rmm.get_list()['richmenus'][0]['richMenuId']
 
     if 'richMenuId' not in res.keys() or res['richMenuId'] != latest_richmenu_id:
+        rmm.detach(user_id)
         rmm.apply(user_id, latest_richmenu_id)
 
     line_bot_api.reply_message(
