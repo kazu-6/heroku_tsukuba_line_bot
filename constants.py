@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage
 from richmenu import RichMenuManager, RichMenu
+import psycopg2
 
 # change below if using line-simulator or it would not work
-# debugging_tool = 'line-sim'
-debugging_tool = 'phone'
+debugging_tool = 'line-sim'
+# debugging_tool = 'phone'
 
 if os.path.isfile('.env') or os.path.isfile('env'):
     print('found .env. So it should be a local environment.')
@@ -22,6 +23,7 @@ else:
 
 CHANNEL_SECRET = os.getenv('CHANNEL_SECRET')
 CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN')
+DATABASE_URL = os.environ['DATABASE_URL']
 
 if CHANNEL_SECRET is None:
     print('Specify LINE_CHANNEL_SECRET as environment variable.')

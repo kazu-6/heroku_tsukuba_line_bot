@@ -30,16 +30,39 @@ from linebot.models import (
     # RichMenu, RichMenuBound, RichMenuArea
 )
 
-import os
-import psycopg2
-
-DATABASE_URL = os.environ['DATABASE_URL']
-
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import JSON
 # from richmenu import RichMenu, RichMenuManager
 
 app = Flask(__name__)
+DATABASE_URL = os.environ['DATABASE_URL']
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+db = SQLAlchemy(app)
 
-# before deploying, turn debug device to phone
+# "text": event.message.text,
+# "text_id": event.message.id,
+# "user_id": event.source.user_id,
+# "timestamp": event.timestamp
+
+
+class Log(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String())
+    text = db.Column(db.String())
+    text_id = db.Column(db.String())
+    text_type = db.Column(db.String())
+    datetime = db.Column(db.DateTime())
+
+    def __init__(self, user_id, text, text_id, text_type, datetime):
+        self.user_id = user_id
+        self.text = text
+        self.text = text
+        self.text_id = text_id
+        self.text_type = text_type
+        self.datetime = datetime
+
+    def __repr__(self):
+        return f'<user_id {self.user_id}>'
 
 
 @app.route("/line/callback", methods=['POST'])
@@ -103,6 +126,17 @@ def handle_text_message(event):
             event.reply_token,
             TextSendMessage(text=f'{date_str}\n計測終了。\n対応ID:{sample_id}\n 職員ID:{staff_id}')
         )
+
+    data = Log(
+        event.source.user_id,
+        event.message.text,
+        event.message.id,
+        event.message.type,
+        datetime.datetime.now()
+    )
+    db.session.add(data)
+    db.session.commit()
+    print('data committed to db.')
 
 
 def address_change_flow(event, user_text):
