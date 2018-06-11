@@ -10,7 +10,7 @@ from linebot.exceptions import (
 )
 
 from constants import line_bot_api, handler, get_text_template_for_id, \
-    get_text_template_for_delegate, rmm
+    get_text_template_for_delegate, rmm, DATABASE_URL
 
 from sample_handler import (
     add_group_event_handler, add_multimedia_event_handler
@@ -31,18 +31,10 @@ from linebot.models import (
 )
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.dialects.postgresql import JSON
-# from richmenu import RichMenu, RichMenuManager
 
 app = Flask(__name__)
-DATABASE_URL = os.environ['DATABASE_URL']
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 db = SQLAlchemy(app)
-
-# "text": event.message.text,
-# "text_id": event.message.id,
-# "user_id": event.source.user_id,
-# "timestamp": event.timestamp
 
 
 class Log(db.Model):
@@ -103,16 +95,14 @@ def handle_text_message(event):
     
     address_change_flow(event, user_text)
 
-    if user_text in ['計測開始', '計測スタート']:
-        now = datetime.datetime.now()
-        date_str = datetime.datetime.strftime(now, "YY-MM-DD hh:mm:ss")
-        sample_id = 1  # soft code needed
-        staff_id = 1234  # soft code needed
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f'{date_str}\n計測開始。\n対応ID:{sample_id}\n 職員ID:{staff_id}')
-        )
+    start_timer(event, user_text)
 
+    end_timer(event, user_text)
+
+    insert_log_to_db(event)
+
+
+def end_timer(event, user_text):
     if user_text in ['計測終了']:
         now = datetime.datetime.now()
         date_str = datetime.datetime.strftime(now, "YY-MM-DD hh:mm:ss")
@@ -127,6 +117,20 @@ def handle_text_message(event):
             TextSendMessage(text=f'{date_str}\n計測終了。\n対応ID:{sample_id}\n 職員ID:{staff_id}')
         )
 
+
+def start_timer(event, user_text):
+    if user_text in ['計測開始', '計測スタート']:
+        now = datetime.datetime.now()
+        date_str = datetime.datetime.strftime(now, "YY-MM-DD hh:mm:ss")
+        sample_id = 1  # soft code needed
+        staff_id = 1234  # soft code needed
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f'{date_str}\n計測開始。\n対応ID:{sample_id}\n 職員ID:{staff_id}')
+        )
+
+
+def insert_log_to_db(event):
     data = Log(
         event.source.user_id,
         event.message.text,
@@ -1027,16 +1031,526 @@ def address_change_flow(event, user_text):
         )
 
 
-
-
-    # 未実装
     if user_text in [f'住所変更と同時にこれら以外']:
-        reply_text = '''担当の部署につないでください。'''
+        pretext = '住所変更と同時に'
+        carousel_template = CarouselTemplate(columns=[
+            CarouselColumn(title=f'{pretext}なにをされますか？', text='お選びください。', actions=[
+                MessageTemplateAction(label='国民健康保険', text=f'{pretext}国民健康保険'),
+                MessageTemplateAction(label='後期高齢者医療保険', text=f'{pretext}後期高齢者医療保険'),
+                MessageTemplateAction(label='マル福', text=f'{pretext}マル福'),
+            ]),
+            CarouselColumn(title=f'{pretext}なにをされますか？', text='お選びください。', actions=[
+                MessageTemplateAction(label='国民年金', text=f'{pretext}国民年金'),
+                MessageTemplateAction(label='児童手当', text=f'{pretext}児童手当'),
+                MessageTemplateAction(label='児童扶養手当', text=f'{pretext}児童扶養手当'),
+            ]),
+            CarouselColumn(title=f'{pretext}なにをされますか？', text='お選びください。', actions=[
+                MessageTemplateAction(label='ひとり親など児童福祉金', text=f'{pretext}ひとり親など児童福祉金'),
+                MessageTemplateAction(label='いばらきキッズクラブカード', text=f'{pretext}いばらきキッズクラブカード'),
+                MessageTemplateAction(label='小中学校/義務教育学校', text=f'{pretext}小中学校/義務教育学校'),
+            ]),
+            CarouselColumn(title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='予防接種予診票', text=f'{pretext}予防接種予診票'),
+                MessageTemplateAction(label='母子健康手帳・受診票', text=f'{pretext}母子健康手帳・受診票'),
+                MessageTemplateAction(label='各種がん検診・健康診断', text=f'{pretext}各種がん検診・健康診断'),
+            ]),
+            CarouselColumn(title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='介護保険', text=f'{pretext}介護保険'),
+                MessageTemplateAction(label='各種障害者手帳等', text=f'{pretext}各種障害者手帳等'),
+                MessageTemplateAction(label='各種障害児（者）手当など', text=f'{pretext}各種障害児（者）手当など'),
+            ]),
+            CarouselColumn(title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='原付バイクなど', text=f'{pretext}原付バイクなど'),
+                MessageTemplateAction(label='ダミー', text=f'{pretext}ダミー'),
+                MessageTemplateAction(label='ダミー', text=f'{pretext}ダミー'),
+            ]),
+
+        ])
+        template_message = TemplateSendMessage(
+            alt_text='Carousel alt text', template=carousel_template)
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+
+
+    if user_text in [f'住所変更と同時に国民健康保険']:
+        pretext = '国民健康保険&'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居・転出', text=f'{pretext}転居・転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['国民健康保険&転入']:
+        reply_text = '''本人確認書類、マイナンバーがわかるものが必要です。その他詳細は国民健康保険課まで。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
 
+    if user_text in ['国民健康保険&転居・転出']:
+        reply_text = '''本人確認書類、マイナンバーがわかるもの、国民健康保険証が必要です。その他詳細は国民健康保険課まで。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in [f'住所変更と同時に後期高齢者医療保険']:
+        pretext = '後期高齢者医療保険&'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居・転出', text=f'{pretext}転居・転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['後期高齢者医療保険&転入']:
+        reply_text = '''印鑑、負担区分等証明書、マイナンバーがわかるもの。
+        その他詳細は、医療年金課までお問い合わせください。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in ['後期高齢者医療保険&転居・転出']:
+        reply_text = '''印鑑、後期古例者医療被保険者証、マイナンバーがわかるもの。
+        その他詳細は、医療年金課までお問い合わせください。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in [f'住所変更と同時にマル福']:
+        pretext = 'マル福&'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居・転出', text=f'{pretext}転居・転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['マル福&転入']:
+        pretext = 'マル福を申請&転入&'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}何に該当しますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='妊娠している', text=f'{pretext}妊娠している'),
+                MessageTemplateAction(label='各種障害手帳を持っている', text=f'{pretext}各種障害手帳を持っている'),
+                MessageTemplateAction(label='中学３年生までのお子様あり', text=f'{pretext}中学３年生までのお子様あり'),
+                MessageTemplateAction(label='ひとり親家庭', text=f'{pretext}ひとり親家庭')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}何に該当しますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['マル福を申請&転入&妊娠している']:
+        reply_text = '''本人確認書類、印鑑、母子健康手帳、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるものが必要です。'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['マル福を申請&転入&各種障害手帳を持っている']:
+        reply_text = '''所得制限があります。
+        本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、身体障害者手帳等（重度心身障害者の方）、同意書、マイナンバーがわかるものが必要です。
+        その他詳細については、医療年金課までお問い合わせください。
+
+        '''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['マル福を申請&転入&中学３年生までのお子様あり']:
+        reply_text = '''本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるものが必要です。
+その他詳細については、医療年金課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['マル福を申請&転入&ひとり親家庭']:
+        reply_text = '''本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるもの、ひとり親であることを証明する書類が必要です。
+その他詳細については、医療年金課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in ['マル福&転居・転出']:
+        reply_text = '''現在つくば市でマル福を受給している場合
+印鑑、マル福受給者証が必要です。
+その他詳細については、医療年金課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in [f'住所変更と同時に国民年金']:
+        pretext = '国民年金と同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居', text=f'{pretext}転居'),
+                MessageTemplateAction(label='転出', text=f'{pretext}転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['国民年金と同時に転入']:
+        reply_text = '''受給中・加入中の方
+年金手帳またはマイナンバーがわかるものが必要です。
+その他詳細については、医療年金課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['国民年金と同時に転居']:
+        reply_text = '''受給中の方
+年金手帳またはマイナンバーがわかるものが必要です。
+その他詳細については、医療年金課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['国民年金と同時に転出']:
+        reply_text = '''海外へ転出される方
+年金手帳またはマイナンバーがわかるものが必要です。
+その他詳細については、医療年金課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in [f'住所変更と同時に児童手当']:
+        pretext = '児童手当同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居', text=f'{pretext}転居'),
+                MessageTemplateAction(label='転出', text=f'{pretext}転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['児童手当同時に転入']:
+        reply_text = '''印鑑、請求者の健康保険証、預金通帳、児童が市外にいる場合は住民票の写しが必要です。必要なものが不足していても申請はできます。
+その他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['児童手当同時に転居']:
+        reply_text = '''印鑑（電話番号が変更になった方は手続きが必要です）
+その他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['児童手当同時に転出']:
+        reply_text = '''印鑑（受給者と児童が転出、または受給者のみ転出の場合は、転入先で所得証明書が必要になる場合があります。受給者のみ転出の場合は、住民票の写しが必要になる場合があります。転入先の市町村で問い合わせください。
+その他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in [f'住所変更と同時に児童扶養手当']:
+        pretext = '児童扶養手当と同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入・転居', text=f'{pretext}転入・転居'),
+                MessageTemplateAction(label='転出', text=f'{pretext}転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['児童扶養手当と同時に転入・転居']:
+        reply_text = '''印鑑、児童扶養手当証書（新規の場合、戸籍謄本）が必要です。
+その他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['児童扶養手当と同時に転出']:
+        reply_text = '''印鑑が必要です。
+どの他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in [f'住所変更と同時にひとり親など児童福祉金']:
+        pretext = 'ひとり親など児童福祉金と同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居・転出', text=f'{pretext}転居・転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['ひとり親など児童福祉金と同時に転入']:
+        reply_text = '''印鑑、児童の戸籍謄本が必要です。
+その他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['ひとり親など児童福祉金と同時に転居・転出']:
+        reply_text = '''印鑑が必要です。
+その他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in [f'住所変更と同時にいばらきキッズクラブカード']:
+        reply_text = '''転入の場合のみ。\n児童の健康保険証、母子健康手帳等児童の年齢がわかるものが必要です。
+その他詳細については、こども政策課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in [f'住所変更と同時に小中学校/義務教育学校']:
+        pretext = '小中学校/義務教育学校と同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居', text=f'{pretext}転居(学区変更伴う)'),
+                MessageTemplateAction(label='転出', text=f'{pretext}転出（引き続きつくば市の学校へ就学する場合）')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['小中学校/義務教育学校と同時に転入']:
+        reply_text = '''印鑑が必要です。
+その他詳細については、学務課にお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['小中学校/義務教育学校と同時に転居(学区変更伴う)']:
+        reply_text = '''印鑑が必要です。
+その他詳細については、学務課にお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in ['小中学校/義務教育学校と同時に転出（引き続きつくば市の学校へ就学する場合）']:
+        reply_text = '''印鑑が必要です。
+その他詳細については、学務課にお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+
+    if user_text in [f'住所変更と同時に予防接種予診票']:
+        reply_text = '''転入（7歳6か月未満のお子様がいる家庭の場合）
+予防接種記録のわかるもの（母子健康手帳等）が必要です。
+その他詳細については、健康増進課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+                
+
+    if user_text in [f'住所変更と同時に母子健康手帳・受診票']:
+        reply_text = '''妊娠している場合
+
+母子健康手帳、妊婦一般健康診査受診票が必要です。
+その他詳細については、健康増進課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in [f'住所変更と同時に各種がん検診・健康診断']:
+        reply_text = '''転入（各種がん検診を希望の方、39歳以下で検診を受ける機会のない方（学生は除く））
+受診券が発行されます。その他詳細については、健康増進課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in [f'住所変更と同時に介護保険']:
+        pretext = '介護保険と同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居', text=f'{pretext}転居'),
+                MessageTemplateAction(label='転出', text=f'{pretext}転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['介護保険と同時に転入']:
+        reply_text = '''受給資格証明書（お持ちの方のみ）、マイナンバーがわかるものが必要です。
+その他詳細については、介護保険課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['介護保険と同時に転居']:
+        reply_text = '''介護保険証、負担割合証、負担限度額認定証（お持ちの方のみ）が必要です。
+その他詳細については、介護保険課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['介護保険と同時に転出']:
+        reply_text = '''介護保険証、負担限度額認定証（お持ちの方のみ）、負担割合証（受給資格証明書が交付されます）が必要です。
+その他詳細については、介護保険課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+
+    if user_text in [f'住所変更と同時に各種障害者手帳等']:
+        reply_text = '''転入・転居
+        
+印鑑、各種手帳（身体障害者手帳、療育手帳、精神障害者保健福祉手帳等）、各種サービス受給者証、自立支援医療受給者証などが必要です。
+その他詳細については、障害福祉課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in [f'住所変更と同時に各種障害児（者）手当など']:
+        pretext = '各種障害児（者）手当等と同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='海外転出', text=f'{pretext}海外転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['各種障害児（者）手当等と同時に転入']:
+        reply_text = '''印鑑、特別児童扶養手当受給資格者は証書及び新住所の住民票謄本が必要です。
+その他詳細については、障害福祉課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['各種障害児（者）手当等と同時に海外転出']:
+        reply_text = '''資格喪失手続きが必要です。詳細については、障害福祉課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+
+    if user_text in [f'住所変更と同時に原付バイクなど']:
+        pretext = '原付バイクと同時に'
+        buttons_template = ButtonsTemplate(
+            title=f'{pretext}なにをされますか？', text='お選びください', actions=[
+                MessageTemplateAction(label='転入', text=f'{pretext}転入'),
+                MessageTemplateAction(label='転居', text=f'{pretext}転居'),
+                MessageTemplateAction(label='転出', text=f'{pretext}転出')
+            ])
+        template_message = TemplateSendMessage(
+            alt_text=f'{pretext}なにをされますか？', template=buttons_template
+        )
+        line_bot_api.reply_message(event.reply_token, template_message)
+
+    if user_text in ['原付バイクと同時に転入']:
+        reply_text = '''印鑑、廃車証明書、本人確認書類が必要です。
+その他詳細については、市民税課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['原付バイクと同時に転居']:
+        reply_text = '''印鑑、標識交付証明書、本人確認書類が必要です。
+その他詳細については、市民税課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
+    if user_text in ['原付バイクと同時に転出']:
+        reply_text = '''印鑑、標識交付証明書、本人確認書類、ナンバープレートが必要です。
+その他詳細については、市民税課までお問い合わせください。
+'''
+        line_bot_api.reply_message(
+            event.reply_token,
+            get_text_send_messages(event, reply_text)
+        )
+        
 
 def certificates_flow(event, user_text):
     # q1
