@@ -10,7 +10,7 @@ from linebot.exceptions import (
 )
 
 from constants import line_bot_api, handler, get_text_template_for_id, \
-    get_text_template_for_delegate, rmm, DATABASE_URL
+    get_text_template_for_delegate, rmm, DATABASE_URL, dt_format
 
 from sample_handler import (
     add_group_event_handler, add_multimedia_event_handler
@@ -31,6 +31,7 @@ from linebot.models import (
 )
 
 from flask_sqlalchemy import SQLAlchemy
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -105,28 +106,31 @@ def handle_text_message(event):
 def end_timer(event, user_text):
     if user_text in ['計測終了']:
         now = datetime.datetime.now()
-        date_str = datetime.datetime.strftime(now, "YY-MM-DD hh:mm:ss")
-        sample_id = 1  # soft code needed
+        date_str = datetime.datetime.strftime(now, dt_format)
         staff_id = 1234  # soft code needed
 
         # 計測終了が押される直前に、同じユーザーに押されていた「計測スタート」の時刻を取りに行く。
         # そして現在時刻との差分を取る。
-
+        # start_log = Log.query.filter_by(user_id=event.source.user_id).first()
+        start_log = Log.query.filter_by(text='計測スタート', user_id=event.source.user_id).order_by(db.desc(Log.datetime)).first()
+        print(start_log.datetime)
+        str_dt = start_log.datetime.strftime(dt_format)
+        time_used = int((now - start_log.datetime).total_seconds())
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f'{date_str}\n計測終了。\n対応ID:{sample_id}\n 職員ID:{staff_id}')
+            TextSendMessage(text=f'計測終了:{date_str}\n開始時刻:{str_dt}\n対応時間:{time_used}秒\n職員ID:{time_used}')
         )
 
 
 def start_timer(event, user_text):
     if user_text in ['計測開始', '計測スタート']:
         now = datetime.datetime.now()
-        date_str = datetime.datetime.strftime(now, "YY-MM-DD hh:mm:ss")
+        date_str = datetime.datetime.strftime(now, dt_format)
         sample_id = 1  # soft code needed
         staff_id = 1234  # soft code needed
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f'{date_str}\n計測開始。\n対応ID:{sample_id}\n 職員ID:{staff_id}')
+            TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}')
         )
 
 

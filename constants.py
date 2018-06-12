@@ -12,6 +12,8 @@ import psycopg2
 debugging_tool = 'line-sim'
 # debugging_tool = 'phone'
 
+dt_format = '%Y-%m-%d %H:%M:%S'
+
 if os.path.isfile('.env') or os.path.isfile('env'):
     print('found .env. So it should be a local environment.')
     ENV = load_dotenv('.env')
