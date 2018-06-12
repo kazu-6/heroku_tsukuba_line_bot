@@ -100,14 +100,13 @@ def handle_text_message(event):
 
     start_timer(event, user_text, now)
 
-    end_timer(event, user_text)
+    end_timer(event, user_text, now)
 
-    insert_log_to_db(event)
+    insert_log_to_db(event, now)
 
 
-def end_timer(event, user_text):
+def end_timer(event, user_text, now):
     if user_text in ['計測終了']:
-        now = datetime.datetime.now()
         date_str = datetime.datetime.strftime(now, dt_format)
         ## 両方おしているのをとって、ちゃんと直前が計測終了になってないことを確認する。
         start_log = Log.query.filter_by(text='計測スタート', user_id=event.source.user_id)\
