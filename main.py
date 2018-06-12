@@ -80,6 +80,8 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
 
+    now = datetime.datetime.now()
+
     user_text = event.message.text
 
     my_number_lost_flow(event, user_text)
@@ -96,7 +98,7 @@ def handle_text_message(event):
     
     address_change_flow(event, user_text)
 
-    start_timer(event, user_text)
+    start_timer(event, user_text, now)
 
     end_timer(event, user_text)
 
@@ -107,26 +109,23 @@ def end_timer(event, user_text):
     if user_text in ['計測終了']:
         now = datetime.datetime.now()
         date_str = datetime.datetime.strftime(now, dt_format)
-        staff_id = 1234  # soft code needed
-
-        # 計測終了が押される直前に、同じユーザーに押されていた「計測スタート」の時刻を取りに行く。
-        # そして現在時刻との差分を取る。
-        # start_log = Log.query.filter_by(user_id=event.source.user_id).first()
-        start_log = Log.query.filter_by(text='計測スタート', user_id=event.source.user_id).order_by(db.desc(Log.datetime)).first()
+        ## 両方おしているのをとって、ちゃんと直前が計測終了になってないことを確認する。
+        start_log = Log.query.filter_by(text='計測スタート', user_id=event.source.user_id)\
+            .order_by(db.desc(Log.datetime)).first()
         print(start_log.datetime)
         str_dt = start_log.datetime.strftime(dt_format)
         time_used = int((now - start_log.datetime).total_seconds())
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=f'計測終了:{date_str}\n開始時刻:{str_dt}\n対応時間:{time_used}秒\n職員ID:{time_used}')
+            TextSendMessage(text=f'計測終了:{date_str}\n開始時刻:{str_dt}\n対応時間:{time_used}秒\n対応職員:')
         )
 
 
-def start_timer(event, user_text):
-    if user_text in ['計測開始', '計測スタート']:
-        now = datetime.datetime.now()
+def start_timer(event, user_text, now):
+
+    ## 両方おしているのをとって、ちゃんと直前が計測スタートになってないことを確認する。
+    if user_text in ['計測スタート']:
         date_str = datetime.datetime.strftime(now, dt_format)
-        sample_id = 1  # soft code needed
         staff_id = 1234  # soft code needed
         line_bot_api.reply_message(
             event.reply_token,
@@ -134,13 +133,13 @@ def start_timer(event, user_text):
         )
 
 
-def insert_log_to_db(event):
+def insert_log_to_db(event, now):
     data = Log(
         event.source.user_id,
         event.message.text,
         event.message.id,
         event.message.type,
-        datetime.datetime.now()
+        now
     )
     db.session.add(data)
     db.session.commit()
