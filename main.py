@@ -22,13 +22,14 @@ from linebot.models import (
     SourceUser, SourceGroup, SourceRoom,
     TemplateSendMessage, ConfirmTemplate, MessageTemplateAction,
     ButtonsTemplate, ImageCarouselTemplate, ImageCarouselColumn, URITemplateAction,
+    ImagemapSendMessage, ImagemapArea, ImagemapAction, MessageImagemapAction, URIImagemapAction,
     PostbackTemplateAction, DatetimePickerTemplateAction,
     CarouselTemplate, CarouselColumn, PostbackEvent,
     StickerMessage, StickerSendMessage, LocationMessage, LocationSendMessage,
     ImageMessage, VideoMessage, AudioMessage, FileMessage,
     UnfollowEvent, FollowEvent, JoinEvent, LeaveEvent, BeaconEvent,
     # RichMenu, RichMenuBound, RichMenuArea
-)
+    BaseSize)
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -37,6 +38,8 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 db = SQLAlchemy(app)
 
+
+# ユーザー情報登録機能（本名入力）。あとは市役所の職員リストと突き合わす
 
 class Log(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -102,7 +105,31 @@ def handle_text_message(event):
 
     end_timer(event, user_text, now)
 
+    survey_response(event, user_text, now)
+
     insert_log_to_db(event, now)
+
+
+def survey_response(event, user_text, now):
+
+    actions = [MessageImagemapAction(
+        text=f'{i+1}',
+        area=ImagemapArea(
+            x=208 * i, y=0, width=208, height=260
+        )
+    ) for i in range(5)]
+    print(actions)
+    if user_text in ['計測終了']:
+
+        line_bot_api.reply_message(
+            event.reply_token,
+            ImagemapSendMessage(
+                alt_text='結果評価用の画像です。',
+                base_url='https://i.imgur.com/qO2XKYb.png',
+                base_size=BaseSize(height=260, width=1040),
+                actions=actions
+            )
+        )
 
 
 def end_timer(event, user_text, now):
