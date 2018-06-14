@@ -33,13 +33,34 @@ from linebot.models import (
 
 from flask_sqlalchemy import SQLAlchemy
 
-
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 db = SQLAlchemy(app)
 
 
+# Todo: Survey項目を仮に決めて、質問していくためのコード
+# postbackを使って、q1=2%q2=5みたいになデータを作り、↓修正も可能なように最後に聞き直すしておく。
+# Todo: Survey Tableに記述するコード
+
+# Todo: アンケート結果変更
+
+# Todo: 計測取り消し機能
+
 # ユーザー情報登録機能（本名入力）。あとは市役所の職員リストと突き合わす
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(), unique=True)
+    staff_id = db.Column(db.String())
+    real_name = db.Column(db.String())
+
+    def __init__(self, user_id, staff_id, real_name):
+        self.user_id = user_id
+        self.text = staff_id
+        self.real_name = real_name
+
+    def __repr__(self):
+        return f'<user_id {self.user_id}>'
+
 
 class Log(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -52,13 +73,44 @@ class Log(db.Model):
     def __init__(self, user_id, text, text_id, text_type, datetime):
         self.user_id = user_id
         self.text = text
-        self.text = text
         self.text_id = text_id
         self.text_type = text_type
         self.datetime = datetime
 
     def __repr__(self):
-        return f'<user_id {self.user_id}>'
+        return f'<user_id {self.user_id} text:{self.text}>'
+
+
+class Sample(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String())
+    start_datetime = db.Column(db.DateTime)
+    end_datetime = db.Column(db.DateTime)
+
+    def __init__(self, user_id, start_datetime, end_datetime):
+        self.user_id = user_id
+        self.start_datetime = start_datetime
+        self.end_datetime = end_datetime
+
+    def __repr__(self):
+        return f'<Sample {self.sample_id}>'
+
+
+class Survey(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sample_id = db.Column(db.Integer)
+    user_id = db.Column(db.String())
+    question_number = db.Column(db.Integer)
+    answer = db.Column(db.String())
+
+    def __init__(self, sample_id, user_id, question_number, answer):
+        self.sample_id = sample_id
+        self.user_id = user_id
+        self.question_number = question_number
+        self.answer = answer
+
+    def __repr__(self):
+        return f'<Survey {self.sample_id} {self.question_number} {self.answer}>'
 
 
 @app.route("/line/callback", methods=['POST'])
@@ -82,7 +134,6 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
-
     now = datetime.datetime.now()
 
     user_text = event.message.text
@@ -98,65 +149,97 @@ def handle_text_message(event):
     kei_car_certificate_flow(event, user_text)
 
     certificates_flow(event, user_text)
-    
+
     address_change_flow(event, user_text)
 
     start_timer(event, user_text, now)
 
     end_timer(event, user_text, now)
 
-    survey_response(event, user_text, now)
+    survey_response(event, user_text)
 
     insert_log_to_db(event, now)
 
 
-def survey_response(event, user_text, now):
-
+def survey_response(event, user_text):
     actions = [MessageImagemapAction(
         text=f'{i+1}',
         area=ImagemapArea(
             x=208 * i, y=0, width=208, height=260
         )
     ) for i in range(5)]
-    print(actions)
-    if user_text in ['計測終了']:
 
+    if user_text in ['計測終了']:
+        messages = [
+            TextSendMessage(text="ご自身の対応の評価をお願いいたします。"),
+        ]
         line_bot_api.reply_message(
-            event.reply_token,
-            ImagemapSendMessage(
-                alt_text='結果評価用の画像です。',
-                base_url='https://i.imgur.com/qO2XKYb.png',
-                base_size=BaseSize(height=260, width=1040),
-                actions=actions
-            )
+            event.reply_token, messages
         )
 
 
 def end_timer(event, user_text, now):
     if user_text in ['計測終了']:
-        date_str = datetime.datetime.strftime(now, dt_format)
-        ## 両方おしているのをとって、ちゃんと直前が計測終了になってないことを確認する。
-        start_log = Log.query.filter_by(text='計測スタート', user_id=event.source.user_id)\
-            .order_by(db.desc(Log.datetime)).first()
-        print(start_log.datetime)
-        str_dt = start_log.datetime.strftime(dt_format)
-        time_used = int((now - start_log.datetime).total_seconds())
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f'計測終了:{date_str}\n開始時刻:{str_dt}\n対応時間:{time_used}秒\n対応職員:')
-        )
+        date_str = datetime.datetime.strftime(now, "%H:%M:%S")
+        # 両方おしているのをとって、ちゃんと直前が計測終了になってないことを確認する。
+        start_log = Sample.query \
+            .filter((Sample.user_id == event.source.user_id)) \
+            .order_by(db.desc(Sample.start_datetime)).first()
+
+        if start_log.start_datetime == start_log.end_datetime:
+            str_dt = start_log.start_datetime.strftime("%H:%M:%S")
+            start_log.end_datetime = now
+            db.session.commit()
+            time_used = int((now - start_log.start_datetime).total_seconds())
+            messages = [
+                TextSendMessage(
+                    text=f'対応お疲れ様です！\nご協力ありがとうございます！\n\n計測終了:{date_str}\n開始時刻:{str_dt}\n対応時間:{time_used}秒\n対応職員:\n実験ID:{start_log.id}'
+                ),
+                TextSendMessage(text="ご自身の対応の評価をお願いいたします。"),
+            ]
+
+            line_bot_api.reply_message(
+                event.reply_token,
+                messages
+            )
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f'前の計測はすでに終了しております。')
+            )
 
 
 def start_timer(event, user_text, now):
-
-    ## 両方おしているのをとって、ちゃんと直前が計測スタートになってないことを確認する。
+    # 両方おしているのをとって、ちゃんと直前が計測スタートになってないことを確認する。
     if user_text in ['計測スタート']:
-        date_str = datetime.datetime.strftime(now, dt_format)
+        date_str = datetime.datetime.strftime(now, "%H:%M:%S")
         staff_id = 1234  # soft code needed
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}')
-        )
+        start_log = Sample.query \
+            .filter((Sample.user_id == event.source.user_id)) \
+            .order_by(db.desc(Sample.start_datetime)).first()
+
+        if start_log is None:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}')
+            )
+
+            data = Sample(event.source.user_id, now, now)
+            db.session.add(data)
+            return
+        if start_log.start_datetime == start_log.end_datetime:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f'計測はすでに開始しております。あるいは終了していない計測があります。')
+            )
+        else:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}')
+            )
+
+            data = Sample(event.source.user_id, now, now)
+            db.session.add(data)
 
 
 def insert_log_to_db(event, now):
@@ -173,7 +256,6 @@ def insert_log_to_db(event, now):
 
 
 def address_change_flow(event, user_text):
-
     if user_text in ['住所異動']:
         carousel_template = CarouselTemplate(columns=[
             CarouselColumn(text='お選びください', title='住所関連でお探しですか？', actions=[
@@ -228,7 +310,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['転入手続きをするのは本人以外']:
         buttons_template = ButtonsTemplate(
             title='転入手続きをするのはどなたでしょうか？', text='お選びください', actions=[
@@ -249,7 +331,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['任意代理人が転入手続きをする']:
         reply_text = '委任状（※２）窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、' \
                      '転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。任意代理人のマイナンバーカードの継続は照会書になり、' \
@@ -258,7 +340,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['法定代理人が転入手続きをする']:
         reply_text = '''（親権者）
 戸籍謄本（平日の昼間の場合は不要）
@@ -845,7 +927,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['住所修正手続きをするのは任意代理人']:
         reply_text = '''窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
@@ -853,7 +935,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['住所修正手続きをするのは法定代理人']:
         reply_text = '''委任状（※２）、
         窓口に来た人の本人確認書類（※１）、
@@ -866,7 +948,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['住所修正手続きをするのは親族や養護などの職員']:
         reply_text = '''（親権者）戸籍謄本　（平日の昼間の場合不要です）
 窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
@@ -878,7 +960,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['転出届を取り消したい']:
         pretext = '取り消し手続きをされるのは'
         buttons_template = ButtonsTemplate(
@@ -897,7 +979,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['取り消し手続きをされるのは本人以外']:
         pretext = '転出取り消し手続きをされるのは'
         buttons_template = ButtonsTemplate(
@@ -988,7 +1070,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['再交付手続きをされるのは任意代理人']:
         reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
@@ -1059,7 +1141,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-
     if user_text in [f'住所変更と同時にこれら以外']:
         pretext = '住所変更と同時に'
         carousel_template = CarouselTemplate(columns=[
@@ -1098,8 +1179,6 @@ def address_change_flow(event, user_text):
         template_message = TemplateSendMessage(
             alt_text='Carousel alt text', template=carousel_template)
         line_bot_api.reply_message(event.reply_token, template_message)
-
-
 
     if user_text in [f'住所変更と同時に国民健康保険']:
         pretext = '国民健康保険&'
@@ -1147,7 +1226,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-
     if user_text in ['後期高齢者医療保険&転居・転出']:
         reply_text = '''印鑑、後期古例者医療被保険者証、マイナンバーがわかるもの。
         その他詳細は、医療年金課までお問い合わせください。'''
@@ -1155,7 +1233,6 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-
 
     if user_text in [f'住所変更と同時にマル福']:
         pretext = 'マル福&'
@@ -1219,7 +1296,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-
     if user_text in ['マル福&転居・転出']:
         reply_text = '''現在つくば市でマル福を受給している場合
 印鑑、マル福受給者証が必要です。
@@ -1229,7 +1305,6 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-
 
     if user_text in [f'住所変更と同時に国民年金']:
         pretext = '国民年金と同時に'
@@ -1274,7 +1349,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-
     if user_text in [f'住所変更と同時に児童手当']:
         pretext = '児童手当同時に'
         buttons_template = ButtonsTemplate(
@@ -1315,7 +1389,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-
     if user_text in [f'住所変更と同時に児童扶養手当']:
         pretext = '児童扶養手当と同時に'
         buttons_template = ButtonsTemplate(
@@ -1346,7 +1419,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-
     if user_text in [f'住所変更と同時にひとり親など児童福祉金']:
         pretext = 'ひとり親など児童福祉金と同時に'
         buttons_template = ButtonsTemplate(
@@ -1376,7 +1448,6 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-
 
     if user_text in [f'住所変更と同時にいばらきキッズクラブカード']:
         reply_text = '''転入の場合のみ。\n児童の健康保険証、母子健康手帳等児童の年齢がわかるものが必要です。
@@ -1427,7 +1498,6 @@ def address_change_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
 
-
     if user_text in [f'住所変更と同時に予防接種予診票']:
         reply_text = '''転入（7歳6か月未満のお子様がいる家庭の場合）
 予防接種記録のわかるもの（母子健康手帳等）が必要です。
@@ -1437,7 +1507,6 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-                
 
     if user_text in [f'住所変更と同時に母子健康手帳・受診票']:
         reply_text = '''妊娠している場合
@@ -1449,7 +1518,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in [f'住所変更と同時に各種がん検診・健康診断']:
         reply_text = '''転入（各種がん検診を希望の方、39歳以下で検診を受ける機会のない方（学生は除く））
 受診券が発行されます。その他詳細については、健康増進課までお問い合わせください。
@@ -1458,7 +1527,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in [f'住所変更と同時に介護保険']:
         pretext = '介護保険と同時に'
         buttons_template = ButtonsTemplate(
@@ -1480,7 +1549,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['介護保険と同時に転居']:
         reply_text = '''介護保険証、負担割合証、負担限度額認定証（お持ちの方のみ）が必要です。
 その他詳細については、介護保険課までお問い合わせください。
@@ -1489,7 +1558,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['介護保険と同時に転出']:
         reply_text = '''介護保険証、負担限度額認定証（お持ちの方のみ）、負担割合証（受給資格証明書が交付されます）が必要です。
 その他詳細については、介護保険課までお問い合わせください。
@@ -1509,7 +1578,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in [f'住所変更と同時に各種障害児（者）手当など']:
         pretext = '各種障害児（者）手当等と同時に'
         buttons_template = ButtonsTemplate(
@@ -1530,7 +1599,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['各種障害児（者）手当等と同時に海外転出']:
         reply_text = '''資格喪失手続きが必要です。詳細については、障害福祉課までお問い合わせください。
 '''
@@ -1538,7 +1607,6 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
 
     if user_text in [f'住所変更と同時に原付バイクなど']:
         pretext = '原付バイクと同時に'
@@ -1561,7 +1629,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['原付バイクと同時に転居']:
         reply_text = '''印鑑、標識交付証明書、本人確認書類が必要です。
 その他詳細については、市民税課までお問い合わせください。
@@ -1570,7 +1638,7 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
     if user_text in ['原付バイクと同時に転出']:
         reply_text = '''印鑑、標識交付証明書、本人確認書類、ナンバープレートが必要です。
 その他詳細については、市民税課までお問い合わせください。
@@ -1579,11 +1647,11 @@ def address_change_flow(event, user_text):
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
-        
+
 
 def certificates_flow(event, user_text):
     # q1
-    if user_text in ['各種証明書','住所変更と同時に税証明書']:
+    if user_text in ['各種証明書', '住所変更と同時に税証明書']:
         carousel_template = CarouselTemplate(columns=[
             CarouselColumn(text='お探しなのはどれでしょう？', title='お選びください。', actions=[
                 MessageTemplateAction(label='不在住所証明書・不在籍証明書', text='不在住所証明書・不在籍証明書'),
@@ -1859,7 +1927,6 @@ def certificates_flow(event, user_text):
         )
 
     if user_text in ['納税証明書']:
-
         messages = [TextSendMessage(text='細かい質問があったら、納税課に繋ぐ。1通200円。（軽自動車は無料。）')]
 
         buttons_template = ButtonsTemplate(
@@ -1991,7 +2058,8 @@ def certificates_flow(event, user_text):
         ])
         template_message = TemplateSendMessage(
             alt_text='Carousel alt text', template=carousel_template)
-        messages = [TextSendMessage(text="細かい質問は資産税課へ。（申請者区分に応じて必要書類がことなるので、資産税課に繋ぐ。あくまでも照明の種類と申請できる人と手数料までの案内。）"), template_message]
+        messages = [TextSendMessage(text="細かい質問は資産税課へ。（申請者区分に応じて必要書類がことなるので、資産税課に繋ぐ。あくまでも照明の種類と申請できる人と手数料までの案内。）"),
+                    template_message]
         line_bot_api.reply_message(event.reply_token, messages)
 
     if user_text in ['固定資産評価・公果証明・名寄帳の写し']:
@@ -2781,14 +2849,15 @@ def handle_sticker_message(event):
 
 @handler.add(FollowEvent)
 def handle_follow(event):
-
     user_id = event.source.user_id
     res = rmm.get_applied_menu(user_id)
-    latest_richmenu_id = rmm.get_list()['richmenus'][0]['richMenuId']
-
-    if 'richMenuId' not in res.keys() or res['richMenuId'] != latest_richmenu_id:
+    rms = rmm.get_list()
+    menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
+    latest_menu_init_id = menu_init_rm['richMenuId']
+    # 適用中のリッチメニューIDと、rmmに入ってるリッチメニューのIDが異なれば
+    if 'richMenuId' not in res.keys() or res['richMenuId'] != latest_menu_init_id:
         rmm.detach(user_id)
-        rmm.apply(user_id, latest_richmenu_id)
+        rmm.apply(user_id, latest_menu_init_id)
 
     line_bot_api.reply_message(
         event.reply_token,
