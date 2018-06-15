@@ -4,6 +4,8 @@ import pprint
 import os
 
 import datetime
+import urllib.parse as urlparse
+
 from flask import Flask, request, abort
 from linebot.exceptions import (
     InvalidSignatureError
@@ -32,6 +34,7 @@ from linebot.models import (
     BaseSize)
 
 from flask_sqlalchemy import SQLAlchemy
+from richmenu import RichMenu, RichMenuManager
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -363,9 +366,9 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['親族や養護施設などの職員が転入手続きをする']:
-        reply_text = '''施設などの職員証。親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等
+        reply_text = '''住民記録係に繋ぐ。\n\n施設などの職員証。親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等
 窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）、転出証明書（個人番号カード・住基カードで転出届をした人は、個人番号カード・住基カード）が必要です。
-外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です。
+外国人住民の場合、転入者全員の在留カードまたは外国人登録証明書が必要です。。
 '''
         line_bot_api.reply_message(
             event.reply_token,
@@ -443,7 +446,9 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転入手続きをするのは親族や養護施設などの職員']:
-        reply_text = '''施設などの職員証。親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等
+        reply_text = '''住民記録係に繋ぐ。
+
+施設などの職員証。親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等
 窓口に来た人の本人確認書類（※１）、転入する人全員のパスポート、戸籍謄本・戸籍の附票が必要です。
 
 つくば市に在住したことがあれば、戸籍謄本・戸籍の附票は不要です。
@@ -496,27 +501,22 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転出手続きをするのは任意代理人']:
-        reply_text = '''窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''委任状（※2）、窓口に来た人の本人確認書類が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
 
     if user_text in ['転出手続きをするのは法定代理人']:
-        reply_text = '''（親権者）
-戸籍謄本、窓口に来た人の本人確認書類が必要です。
-（平日の昼間の来庁の場合、本籍地へ電話照会するため、戸籍謄本不要です。）
-
-（成年後見人）
-登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''（親権者）戸籍謄本、窓口に来た人の本人確認書類が必要です。（平日の昼間の来庁の場合、本籍地へ電話照会するため、戸籍謄本不要です。）
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
 
     if user_text in ['転出手続きをするのは親族や養護施設などの職員']:
-        reply_text = '''（親権者）戸籍謄本、窓口に来た人の本人確認書類が必要です。（平日の昼間の来庁の場合、本籍地へ電話照会するため、戸籍謄本不要です。）
-（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）が必要です。'''
+        reply_text = '''住民記録係につなぐ。\n\n\n（親族）本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定など）、窓口に来た人の本人確認書類が必要です。\n\n\n 施設などの職員証、窓口に来た人の本人確認書類が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -589,7 +589,7 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転居手続きをされるのは親族や養護施設などの職員']:
-        reply_text = '''施設等の職員証。親族の場合、本人が来庁不可能なことを証明するもの（施設入居・入院していることを証明するもの、介護認定等
+        reply_text = '''住民記録係に繋ぐ。\n\n施設等の職員証。親族の場合、本人が来庁不可能なことを証明するもの（施設入居・入院していることを証明するもの、介護認定等
 窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
         line_bot_api.reply_message(
@@ -933,20 +933,18 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['住所修正手続きをするのは任意代理人']:
-        reply_text = '''窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
-外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        reply_text = '''委任状※2、窓口に来た人の本人確認書類、世帯全員分の通知カード（個人番号カード取得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
 
     if user_text in ['住所修正手続きをするのは法定代理人']:
-        reply_text = '''委任状（※２）、
-        窓口に来た人の本人確認書類（※１）、
-        世帯全員分の通知カード（個人番号カード所得者を除く）、
-        個人番号カード・住基カード（取得者のみ）
-        が必要です。
-
+        reply_text = '''（親権者）戸籍謄本　（平日の昼間の場合不要です）
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+（成年後見人）登記事項証明書が必要です。
+窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
@@ -954,12 +952,14 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['住所修正手続きをするのは親族や養護などの職員']:
-        reply_text = '''（親権者）戸籍謄本　（平日の昼間の場合不要です）
+        reply_text = '''住民記録係につなぐ。
+        
+施設等の職員証。親族の場合、本人が来庁不可能なことを証明するもの（施設入居・入院していることを証明するもの、介護認定等
+
 窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
+
 外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
-（成年後見人）登記事項証明書が必要です。
-窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
-外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -999,28 +999,25 @@ def address_change_flow(event, user_text):
         line_bot_api.reply_message(event.reply_token, template_message)
 
     if user_text in ['転出取り消し手続きをされるのは本人と同一世帯の人']:
-        reply_text = '''本人と同一世帯の人（転居前・転居後どちらでも）
-窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
-外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        reply_text = '''窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
+'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
 
     if user_text in ['転出取り消し手続きをされるのは任意代理人']:
-        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）、世帯全員分の通知カード（個人番号カード所得者を除く）、個人番号カード・住基カード（取得者のみ）が必要です。
-外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。'''
+        reply_text = '''委任状（※２）、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
+'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
 
     if user_text in ['転出取り消し手続きをされるのは法定代理人']:
-        reply_text = '''窓口に来た人の本人確認書類（※１）、
-        世帯全員分の通知カード（個人番号カード所得者を除く）、
-        個人番号カード・住基カード（取得者のみ）が必要です。
+        reply_text = '''（親権者）戸籍謄本（平日の昼間は不要）、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
 
-外国人住民の場合、転居者全員の在留カードまたは特別永住者証明書または外国人登録証明書が必要です。
+（成年後見人）登記事項証明書、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
 '''
         line_bot_api.reply_message(
             event.reply_token,
@@ -1028,8 +1025,12 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転出取り消し手続きをされるのは親族や養護施設などの職員']:
-        reply_text = '''（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
-（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。'''
+        reply_text = '''住民記録係に繋ぐ。
+        
+（施設の職員）施設などの職員証、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
+
+（親族）親族の場合、本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定等）、窓口に来た人の本人確認書類（※１）、転出証明書が必要です。
+'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -1231,7 +1232,7 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['後期高齢者医療保険&転居・転出']:
-        reply_text = '''印鑑、後期古例者医療被保険者証、マイナンバーがわかるもの。
+        reply_text = '''印鑑、後期高齢者医療被保険者証、マイナンバーがわかるもの。
         その他詳細は、医療年金課までお問い合わせください。'''
         line_bot_api.reply_message(
             event.reply_token,
@@ -1265,7 +1266,11 @@ def address_change_flow(event, user_text):
         line_bot_api.reply_message(event.reply_token, template_message)
 
     if user_text in ['マル福を申請&転入&妊娠している']:
-        reply_text = '''本人確認書類、印鑑、母子健康手帳、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるものが必要です。'''
+        reply_text = '''所得制限があります。
+
+印鑑、母子健康手帳、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるものが必要です。
+その他詳細については、医療年金課までお問い合わせください。
+'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -1273,6 +1278,7 @@ def address_change_flow(event, user_text):
 
     if user_text in ['マル福を申請&転入&各種障害手帳を持っている']:
         reply_text = '''所得制限があります。
+        
         本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、身体障害者手帳等（重度心身障害者の方）、同意書、マイナンバーがわかるものが必要です。
         その他詳細については、医療年金課までお問い合わせください。
 
@@ -1283,7 +1289,7 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['マル福を申請&転入&中学３年生までのお子様あり']:
-        reply_text = '''本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるものが必要です。
+        reply_text = '''所得制限なし。本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるものが必要です。
 その他詳細については、医療年金課までお問い合わせください。
 '''
         line_bot_api.reply_message(
@@ -1292,7 +1298,7 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['マル福を申請&転入&ひとり親家庭']:
-        reply_text = '''本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるもの、ひとり親であることを証明する書類が必要です。
+        reply_text = '''所得制限あり。\n\n\n本人確認書類、印鑑、健康保険証、預金通帳、所得証明書または課税証明書、同意書、マイナンバーがわかるもの、ひとり親であることを証明する書類が必要です。
 その他詳細については、医療年金課までお問い合わせください。
 '''
         line_bot_api.reply_message(
@@ -1658,9 +1664,9 @@ def certificates_flow(event, user_text):
     if user_text in ['各種証明書', '住所変更と同時に税証明書']:
         carousel_template = CarouselTemplate(columns=[
             CarouselColumn(text='お探しなのはどれでしょう？', title='お選びください。', actions=[
-                MessageTemplateAction(label='不在住所証明書・不在籍証明書', text='不在住所証明書・不在籍証明書'),
-                MessageTemplateAction(label='住民票の写しの広域交付', text='住民票の写しの広域交付'),
+                MessageTemplateAction(label='住民票', text='住民票がほしい'),
                 MessageTemplateAction(label='戸籍謄本/改製原戸/戸籍の附票', text='戸籍謄本・抄本、改製原戸・除籍・戸籍の附票がほしい。'),
+                MessageTemplateAction(label='軽自動車用住所証明書', text='軽自動車用住所証明書がほしい'),
             ]),
             CarouselColumn(text='お探しなのはどれでしょう？', title='お選びください。', actions=[
                 MessageTemplateAction(label='身分証明書がほしい', text='身分証明書がほしい'),
@@ -1674,8 +1680,8 @@ def certificates_flow(event, user_text):
             ]),
             CarouselColumn(text='お探しなのはどれでしょう？', title='お選びください。', actions=[
                 MessageTemplateAction(label='合併証明', text='合併証明'),
-                MessageTemplateAction(label='住民票', text='住民票がほしい'),
-                MessageTemplateAction(label='軽自動車用住所証明書', text='軽自動車用住所証明書がほしい'),
+                MessageTemplateAction(label='不在住所証明書・不在籍証明書', text='不在住所証明書・不在籍証明書'),
+                MessageTemplateAction(label='住民票の写しの広域交付', text='住民票の写しの広域交付'),
             ]),
             CarouselColumn(text='お探しなのはどれでしょう？', title='お選びください。', actions=[
                 MessageTemplateAction(label='納税証明書', text='納税証明書'),
@@ -1714,7 +1720,7 @@ def certificates_flow(event, user_text):
                 MessageTemplateAction(label='ダミー', text='このボタンは、ボタンの数を揃えるためのダミーです。')
             ]),
             CarouselColumn(text='ほしいのはどなたですか？', title='お選びください', actions=[
-                MessageTemplateAction(label='特定事務受給者', text='特定事務時給者が'),
+                MessageTemplateAction(label='特定事務受給者', text='特定事務時給者が戸籍系書類をほしい。'),
                 MessageTemplateAction(label='国/地方公共団体職員', text='国・地方公共団体の機関の職員からの請求'),
                 MessageTemplateAction(label='ダミー', text='このボタンは、ボタンの数を揃えるためのダミーです。')
             ])
@@ -1781,8 +1787,8 @@ def certificates_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
     if user_text in ['本人以外が身分証明書をほしい']:
-        reply_text = '本人以外（委任状があっても本籍が不明だったり、申請書記載の本籍が誤っているときは、交付できません）。' \
-                     '委任状、窓口に来た人の本人確認書類が必要で'
+        reply_text = '委任状があっても本籍が不明だったり、申請書記載の本籍が誤っているときは、交付できません。\n\n' \
+                     '委任状、窓口に来た人の本人確認書類が必要です。'
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -1954,7 +1960,7 @@ def certificates_flow(event, user_text):
             get_text_send_messages(event, reply_text, department_to_connect=department_to_connect)
         )
     if user_text in ['本人と同一世帯の人が納税証明書をほしい']:
-        reply_text = '窓口に来た人の本人確認書類が必要です。\n市街に転出している場合は、委任状を要してもらう案内をする。'
+        reply_text = '窓口に来た人の本人確認書類が必要です。\n市外に転出している場合は、委任状を要してもらう案内をする。'
         department_to_connect = "納税課"
         line_bot_api.reply_message(
             event.reply_token,
@@ -2055,7 +2061,7 @@ def certificates_flow(event, user_text):
                 MessageTemplateAction(label='地番図・航空写真', text='地番図・航空写真'),
             ]),
             CarouselColumn(text='お選びください', title='お求めなのはどれでしょう？', actions=[
-                MessageTemplateAction(label='現況証明・家屋滅失証明', text='現況証明・家屋滅失証明'),
+                MessageTemplateAction(label='評価額通知書', text='評価額通知書'),
                 MessageTemplateAction(label='ダミー', text='ダミー'),
                 MessageTemplateAction(label='ダミー', text='ダミー'),
             ]),
@@ -2433,7 +2439,7 @@ def my_number_others_flow(event, user_text):
             CarouselColumn(text='希望する手続きはなんですか？', title='お選びください', actions=[
                 MessageTemplateAction(label='個人番号入り住民票', text='マイナンバー入りの住民の発行'),
                 MessageTemplateAction(label='通知カードの再発行', text='通知カードの再発行'),
-                MessageTemplateAction(label='写真付個人番号カード', text='写真付きマイナンバーカードは申込書'),
+                MessageTemplateAction(label='写真付個人番号カード', text='写真付きマイナンバーカードは申込書の作成まで'),
             ]),
             CarouselColumn(text='希望する手続きはなんですか？', title='お選びください', actions=[
                 MessageTemplateAction(label='通知カード返戻カード分の受取', text='通知カード返戻カード分の受け取り'),
@@ -2457,22 +2463,21 @@ def my_number_others_flow(event, user_text):
             get_text_send_messages(event, reply_text)
         )
     if user_text in ['写真付きマイナンバーカードは申込書の作成まで']:
-        reply_text = '申請者の作成までは窓口センターで可能。本人確認書類の原本が必要。自分でインターネット申請や郵送申請が必要になる。写真撮影まで無料で実施している窓口申請補助を本庁舎のみ。'
+        reply_text = '申請書の作成までは窓口センターで可能。本人確認書類の原本が必要。自分でインターネット申請や郵送申請が必要になる。写真撮影まで無料で実施している窓口申請補助を本庁舎のみ。'
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
     if user_text in ['通知カード返戻カード分の受け取り']:
         reply_text = '返礼された通知カードの受け取り・確認を行う。氏名・生年月日をきき、該当者を検索。' \
-                     '返戻がある場合、どこのセンターでの受け取りを希望を確認する。（職員による直接配送となるので配送可能日を確認し、）いつからお渡し可能化を案内し、' \
+                     '返戻がある場合、どこのセンターでの受け取りを希望を確認する。（職員による直接配送となるので配送可能日を確認し、）いつからお渡し可能かを案内し、' \
                      '本人確認書類を持って本人が該当のセンターに来庁するように伝える。'
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
     if user_text in ['作成済みマイナンバーカードの受け取り']:
-        reply_text = '交付通知書が届いているか確認する。届いている場合、本人確認書類と交付通知書を持って、市役所に来庁するような案内。届いていない場合、氏名・生年月日を聞き、カード発行状況を確認。' \
-                     'カードができていたら、受け取りについて案内を行う。（詳細は個人番号カード係へ繋ぐ。）'
+        reply_text = '詳細は個人番号カード係へ繋ぐ。'
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -2553,7 +2558,7 @@ def my_number_make_flow(event, user_text):
         )
         line_bot_api.reply_message(event.reply_token, template_message)
     if user_text in ['通知カードを受け取ったことがない']:
-        reply_text = '市役所に問い合わせるよう案内する。'
+        reply_text = '個人番号カード係へつなぐ。'
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -2611,13 +2616,15 @@ def my_number_make_flow(event, user_text):
         )
         line_bot_api.reply_message(event.reply_token, template_message)
     if user_text in ['通知カードを再発行したい']:
-        reply_text = '個人番号カードの廃止のため、本人確認書類を持って、来庁頂く必要があることをご案内。その後※３に準ずる'
+        # 箱をわける
+        reply_text = '個人番号カードの廃止のため、本人確認書類を持って、来庁頂く必要があることをご案内。\n\n通知カード再交付のご案内。再交付手数料１通に付き５００円、本人が本人確認書類を持って、市役所または窓口センターに来庁。'
+
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
         )
     if user_text in ['マイナンバーカードを再発行したい']:
-        reply_text = 'マイナンバーカードの廃止は、あたらしい個人番号カードの交付の際に行うことを説明、その後※４に準ずる'
+        reply_text = '個人番号カード係へつなぐ。'
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -2819,15 +2826,31 @@ def add_message_to_connect_other_department(reply_text):
 
 @handler.add(PostbackEvent)
 def handle_postback(event):
-    if event.postback.data == 'ping':
+    data_str = event.postback.data
+    data_dict = dict(urlparse.parse_qsl(data_str))
+    if data_str == "init":
         line_bot_api.reply_message(
-            event.reply_token, TextSendMessage(text='pong'))
-    elif event.postback.data == 'datetime_postback':
+            event.reply_token,
+            TextSendMessage(text="init. Going back to default menu.")
+        )
+
+        rms = rmm.get_list()
+        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
+        latest_menu_init_id = menu_init_rm['richMenuId']
+        rmm.apply(event.source.user_id, latest_menu_init_id)
+
+    if "q" in data_str:
+        question_number = data_str[1]
         line_bot_api.reply_message(
-            event.reply_token, TextSendMessage(text=event.postback.params['datetime']))
-    elif event.postback.data == 'date_postback':
-        line_bot_api.reply_message(
-            event.reply_token, TextSendMessage(text=event.postback.params['date']))
+            event.reply_token,
+            TextSendMessage(text=f"{data_str}. Applying next richmenu.")
+        )
+        rms = rmm.get_list()
+        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number)+1)][0]
+        latest_menu_init_id = menu_init_rm['richMenuId']
+        rmm.apply(event.source.user_id, latest_menu_init_id)
+
+
 
 
 @handler.add(MessageEvent, message=LocationMessage)
@@ -2855,11 +2878,16 @@ def handle_sticker_message(event):
 def handle_follow(event):
     user_id = event.source.user_id
     res = rmm.get_applied_menu(user_id)
+    richmenu_id_applied = res["richMenuId"]
+
     rms = rmm.get_list()
     menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
     latest_menu_init_id = menu_init_rm['richMenuId']
+
     # 適用中のリッチメニューIDと、rmmに入ってるリッチメニューのIDが異なれば
-    if 'richMenuId' not in res.keys() or res['richMenuId'] != latest_menu_init_id:
+    print(richmenu_id_applied)
+    print(latest_menu_init_id)
+    if 'richMenuId' not in res.keys() or richmenu_id_applied != latest_menu_init_id:
         rmm.detach(user_id)
         rmm.apply(user_id, latest_menu_init_id)
 

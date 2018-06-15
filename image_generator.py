@@ -43,10 +43,11 @@ grid_height = math.ceil(small_image_res[1]/row_count)
 # Setup RichMenuManager
 rmm = RichMenuManager(CHANNEL_ACCESS_TOKEN)
 rms = rmm.get_list()
-menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
-latest_menu_init_id = menu_init_rm['richMenuId']
-rmm.remove(latest_menu_init_id)
-print(f"richmenu {latest_menu_init_id} deleted")
+print(rms)
+menu_init_rm_ids = [rm["richMenuId"] for rm in rms["richmenus"] if rm["name"] == "menu_init"]
+for id in menu_init_rm_ids:
+    rmm.remove(id)
+    print(f"richmenu {id} deleted")
 
 # Setup RichMenu to register
 rm = RichMenu(name="menu_init", chat_bar_text="問い合わせ分類", size_full=False)
@@ -60,7 +61,6 @@ for i, word in enumerate(trigger_words):
     x, y = get_position(row, column)
     canvas.paste(img, (x, y))
     rm.add_area(x, y, grid_width, grid_height, "message", word)
-
 canvas.show()
 canvas.save('richmenu_init.jpg', 'JPEG', quality=100, optimize=True)
 
@@ -68,16 +68,9 @@ res = rmm.register(rm, "./richmenu_init.jpg")
 richmenu_id = res["richMenuId"]
 print("Registered as " + richmenu_id)
 
+rms = rmm.get_list()
+print(rms)
 
 # Apply to user
-user_id = "U0a028f903127e2178bd789b4b4046ba7"
-rmm.apply(user_id, richmenu_id)
-# # # Check
-# res = rmm.get_applied_menu(user_id)
-# print(user_id + ":" + res["richMenuId"])
-#
-#
-# rmm.detach(user_id)
-# res = rmm.get_applied_menu(user_id)
-# print(res)
-
+# user_id = "U64ba20ff7114cb5be9d20ba125662033"
+# rmm.apply(user_id, richmenu_id)
