@@ -39,7 +39,7 @@ db = SQLAlchemy(app)
 
 
 # Todo: Survey項目を仮に決めて、質問していくためのコード
-# postbackを使って、q1=2%q2=5みたいになデータを作り、↓修正も可能なように最後に聞き直すしておく。
+# richmenuを質問の数だけ作って、postbackを使って、q1=2%q2=5みたいになデータを作り、↓修正も可能なように最後に聞き直すしておく。
 # Todo: Survey Tableに記述するコード
 
 # Todo: アンケート結果変更
@@ -160,22 +160,17 @@ def handle_text_message(event):
 
     insert_log_to_db(event, now)
 
+    if user_text == 'rm':
+        rms = rmm.get_list()
+        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
+        latest_menu_init_id = menu_init_rm['richMenuId']
+        rmm.apply(event.source.user_id, latest_menu_init_id)
+        print("applied")
+
 
 def survey_response(event, user_text):
-    actions = [MessageImagemapAction(
-        text=f'{i+1}',
-        area=ImagemapArea(
-            x=208 * i, y=0, width=208, height=260
-        )
-    ) for i in range(5)]
 
-    if user_text in ['計測終了']:
-        messages = [
-            TextSendMessage(text="ご自身の対応の評価をお願いいたします。"),
-        ]
-        line_bot_api.reply_message(
-            event.reply_token, messages
-        )
+    pass
 
 
 def end_timer(event, user_text, now):
@@ -191,6 +186,15 @@ def end_timer(event, user_text, now):
             start_log.end_datetime = now
             db.session.commit()
             time_used = int((now - start_log.start_datetime).total_seconds())
+
+            # richmenuを変更するコードを以下に
+            user_id = event.source.user_id
+            # user_id = "U0a028f903127e2178bd789b4b4046ba7"
+            rms = rmm.get_list()
+            menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "q1"][0]
+            latest_menu_init_id = menu_init_rm['richMenuId']
+            rmm.apply(user_id, latest_menu_init_id)
+
             messages = [
                 TextSendMessage(
                     text=f'対応お疲れ様です！\nご協力ありがとうございます！\n\n計測終了:{date_str}\n開始時刻:{str_dt}\n対応時間:{time_used}秒\n対応職員:\n実験ID:{start_log.id}'
