@@ -50,7 +50,7 @@ for id in menu_init_rm_ids:
     print(f"richmenu {id} deleted")
 
 # Setup RichMenu to register
-rm = RichMenu(name="menu_init", chat_bar_text="問い合わせ分類", size_full=False)
+rm = RichMenu(name="menu_init", chat_bar_text="問合わせ分類", size_full=False)
 
 for i, word in enumerate(trigger_words):
 

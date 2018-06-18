@@ -2850,7 +2850,16 @@ def handle_postback(event):
         latest_menu_init_id = menu_init_rm['richMenuId']
         rmm.apply(event.source.user_id, latest_menu_init_id)
 
-
+    # back_to_q1
+    if "back" in data_str:
+        question_number = data_str[-1]
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"{data_str}. 前の質問に戻ります。もう一度選択してください。")
+        )
+        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number))][0]
+        latest_menu_init_id = menu_init_rm['richMenuId']
+        rmm.apply(event.source.user_id, latest_menu_init_id)
 
 
 @handler.add(MessageEvent, message=LocationMessage)

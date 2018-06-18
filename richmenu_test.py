@@ -15,34 +15,32 @@ rms = rmm.get_list()
 # rmm.remove(latest_menu_id)
 # print(f"richmenu {latest_menu_id} deleted")
 
-q1_rm_ids = [rm["richMenuId"] for rm in rms["richmenus"] if rm["name"] == "q1"]
-for id in q1_rm_ids:
-    rmm.remove(id)
-    print(f"richmenu q1 {id} deleted")
 
-q2_rm_ids = [rm["richMenuId"] for rm in rms["richmenus"] if rm["name"] == "q2"]
-for id in q2_rm_ids:
-    rmm.remove(id)
-    print(f"richmenu q2 {id} deleted")
+def register_survey_richmenu(index):
+    global id, rm, res
+    i = index + 1
 
-rm = RichMenu(name="q1", chat_bar_text="質問1", size_full=True)
-rm.add_area(0, 0, 200, 200, "postback", "init")
-rm.add_area(19, 603, 458, 480, "postback", "q1=1")
-rm.add_area(502, 603, 458, 480, "postback", "q1=2")
-rm.add_area(1025, 603, 458, 480, "postback", "q1=3")
-rm.add_area(1528, 603, 458, 480, "postback", "q1=4")
-rm.add_area(2031, 603, 458, 480, "postback", "q1=5")
+    q1_rm_ids = [rm["richMenuId"] for rm in rms["richmenus"] if rm["name"] == f"q{i}"]
 
-res = rmm.register(rm, "./richmenus/survey.jpg")
+    for id in q1_rm_ids:
+        rmm.remove(id)
+        print(f"richmenu q{i} {id} deleted")
 
-rm = RichMenu(name="q2", chat_bar_text="質問2", size_full=True)
-rm.add_area(0, 0, 200, 200, "postback", "init")
-rm.add_area(19, 603, 458, 480, "postback", "q2=1")
-rm.add_area(502, 603, 458, 480, "postback", "q2=2")
-rm.add_area(1025, 603, 458, 480, "postback", "q2=3")
-rm.add_area(1528, 603, 458, 480, "postback", "q2=4")
-rm.add_area(2031, 603, 458, 480, "postback", "q2=5")
+    rm = RichMenu(name=f"q{i}", chat_bar_text=f"質問{i}", size_full=True)
+    rm.add_area(0, 0, 752, 142, "postback", f"back_to_q{i-1}")
+    rm.add_area(2000, 0, 750, 140, "postback", "init")
+    rm.add_area(13, 876, 458, 480, "postback", f"q{i}=1")
+    rm.add_area(516, 876, 458, 480, "postback", f"q{i}=2")
+    rm.add_area(1019, 876, 458, 480, "postback", f"q{i}=3")
+    rm.add_area(1522, 876, 458, 480, "postback", f"q{i}=4")
+    rm.add_area(2025, 876, 458, 480, "postback", f"q{i}=5")
+    res = rmm.register(rm, f"/Users/ryo/gitWorks/heroku_tsukuba_line_bot/richmenus/survey – {i}.jpg")
 
-res = rmm.register(rm, "./richmenus/survey – 1.jpg")
-rms = rmm.get_list()
-print(rms)
+
+if __name__ == '__main__':
+
+    for i in range(3):
+        register_survey_richmenu(i)
+
+    rms = rmm.get_list()
+    print(rms)
