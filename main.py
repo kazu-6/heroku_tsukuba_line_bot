@@ -4,6 +4,7 @@ import pprint
 import os
 
 import datetime
+import re
 import urllib.parse as urlparse
 
 from flask import Flask, request, abort
@@ -2839,7 +2840,7 @@ def handle_postback(event):
         latest_menu_init_id = menu_init_rm['richMenuId']
         rmm.apply(event.source.user_id, latest_menu_init_id)
 
-    if "q" in data_str:
+    if re.match('q\d=\d', data_str):
         question_number = data_str[1]
         line_bot_api.reply_message(
             event.reply_token,
