@@ -2848,12 +2848,12 @@ def handle_postback(event):
         )
         rms = rmm.get_list()
 
-        if question_number != total_question_counts:
+        if int(question_number) != total_question_counts:
             menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number)+1)][0]
             latest_menu_init_id = menu_init_rm['richMenuId']
             rmm.apply(event.source.user_id, latest_menu_init_id)
 
-        elif question_number == total_question_counts:
+        elif int(question_number) == total_question_counts:
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="ご回答ありがとうございました。")
