@@ -2842,21 +2842,21 @@ def handle_postback(event):
 
     if re.match('q\d=\d', data_str):
         question_number = data_str[1]
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=f"{data_str}. Applying next richmenu.")
-        )
         rms = rmm.get_list()
 
         if int(question_number) != total_question_counts:
             menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number)+1)][0]
             latest_menu_init_id = menu_init_rm['richMenuId']
             rmm.apply(event.source.user_id, latest_menu_init_id)
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"{data_str}. 次の質問に移ります.")
+            )
 
         elif int(question_number) == total_question_counts:
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="ご回答ありがとうございました。")
+                TextSendMessage(text=f"{data_str}ご回答ありがとうございました。")
             )
 
             menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
