@@ -2858,6 +2858,7 @@ def handle_postback(event):
             event.reply_token,
             TextSendMessage(text=f"{data_str}. 前の質問に戻ります。もう一度選択してください。")
         )
+        rms = rmm.get_list()
         menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number))][0]
         latest_menu_init_id = menu_init_rm['richMenuId']
         rmm.apply(event.source.user_id, latest_menu_init_id)
