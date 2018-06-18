@@ -13,7 +13,7 @@ from linebot.exceptions import (
 )
 
 from constants import line_bot_api, handler, get_text_template_for_id, \
-    get_text_template_for_delegate, rmm, DATABASE_URL, dt_format
+    get_text_template_for_delegate, rmm, DATABASE_URL, dt_format, total_question_counts
 
 from sample_handler import (
     add_group_event_handler, add_multimedia_event_handler
@@ -2847,9 +2847,22 @@ def handle_postback(event):
             TextSendMessage(text=f"{data_str}. Applying next richmenu.")
         )
         rms = rmm.get_list()
-        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number)+1)][0]
-        latest_menu_init_id = menu_init_rm['richMenuId']
-        rmm.apply(event.source.user_id, latest_menu_init_id)
+
+        if question_number != total_question_counts:
+            menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number)+1)][0]
+            latest_menu_init_id = menu_init_rm['richMenuId']
+            rmm.apply(event.source.user_id, latest_menu_init_id)
+
+        elif question_number == total_question_counts:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="ご回答ありがとうございました。")
+            )
+
+            menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
+            latest_menu_init_id = menu_init_rm['richMenuId']
+            rmm.apply(event.source.user_id, latest_menu_init_id)
+
 
     # back_to_q1
     if "back" in data_str:
@@ -2862,6 +2875,7 @@ def handle_postback(event):
         menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number))][0]
         latest_menu_init_id = menu_init_rm['richMenuId']
         rmm.apply(event.source.user_id, latest_menu_init_id)
+
 
 
 @handler.add(MessageEvent, message=LocationMessage)

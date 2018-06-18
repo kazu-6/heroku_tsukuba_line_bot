@@ -34,6 +34,7 @@ def register_survey_richmenu(index):
     rm.add_area(1019, 876, 458, 480, "postback", f"q{i}=3")
     rm.add_area(1522, 876, 458, 480, "postback", f"q{i}=4")
     rm.add_area(2025, 876, 458, 480, "postback", f"q{i}=5")
+
     res = rmm.register(rm, f"/Users/ryo/gitWorks/heroku_tsukuba_line_bot/richmenus/survey – {i}.jpg")
 
 
