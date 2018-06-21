@@ -5,15 +5,16 @@ import os
 
 import datetime
 import re
+# noinspection PyUnresolvedReferences
 import urllib.parse as urlparse
-
 from flask import Flask, request, abort
+
 from linebot.exceptions import (
-    InvalidSignatureError
+    InvalidSignatureError, LineBotApiError
 )
 
 from constants import line_bot_api, handler, get_text_template_for_id, \
-    get_text_template_for_delegate, rmm, DATABASE_URL, dt_format, total_question_counts
+    get_text_template_for_delegate, DATABASE_URL, total_question_counts
 
 from sample_handler import (
     add_group_event_handler, add_multimedia_event_handler
@@ -31,8 +32,9 @@ from linebot.models import (
     StickerMessage, StickerSendMessage, LocationMessage, LocationSendMessage,
     ImageMessage, VideoMessage, AudioMessage, FileMessage,
     UnfollowEvent, FollowEvent, JoinEvent, LeaveEvent, BeaconEvent,
-    # RichMenu, RichMenuBound, RichMenuArea
-    BaseSize)
+    FlexContainer, FlexComponent, FlexSendMessage,
+    RichMenu, RichMenuArea, BaseSize
+)
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -41,13 +43,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 db = SQLAlchemy(app)
 
 
-# Todo: Survey項目を仮に決めて、質問していくためのコード
-# richmenuを質問の数だけ作って、postbackを使って、q1=2%q2=5みたいになデータを作り、↓修正も可能なように最後に聞き直すしておく。
 # Todo: Survey Tableに記述するコード
-
-# Todo: アンケート結果変更
-
-# Todo: 計測取り消し機能
 
 # ユーザー情報登録機能（本名入力）。あとは市役所の職員リストと突き合わす
 class User(db.Model):
@@ -62,7 +58,7 @@ class User(db.Model):
         self.real_name = real_name
 
     def __repr__(self):
-        return f'<user_id {self.user_id}>'
+        return '<user_id {}>'.format(self.user_id)
 
 
 class Log(db.Model):
@@ -73,12 +69,12 @@ class Log(db.Model):
     text_type = db.Column(db.String())
     datetime = db.Column(db.DateTime())
 
-    def __init__(self, user_id, text, text_id, text_type, datetime):
+    def __init__(self, user_id, text, text_id, text_type, dt):
         self.user_id = user_id
         self.text = text
         self.text_id = text_id
         self.text_type = text_type
-        self.datetime = datetime
+        self.datetime = dt
 
     def __repr__(self):
         return f'<user_id {self.user_id} text:{self.text}>'
@@ -159,26 +155,11 @@ def handle_text_message(event):
 
     end_timer(event, user_text, now)
 
-    survey_response(event, user_text)
-
     insert_log_to_db(event, now)
-
-    if user_text == 'rm':
-        rms = rmm.get_list()
-        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
-        latest_menu_init_id = menu_init_rm['richMenuId']
-        rmm.apply(event.source.user_id, latest_menu_init_id)
-        print("applied")
-
-
-def survey_response(event, user_text):
-
-    pass
 
 
 def end_timer(event, user_text, now):
     if user_text in ['計測終了']:
-        date_str = datetime.datetime.strftime(now, "%H:%M:%S")
         # 両方おしているのをとって、ちゃんと直前が計測終了になってないことを確認する。
         start_log = Sample.query \
             .filter((Sample.user_id == event.source.user_id)) \
@@ -193,16 +174,19 @@ def end_timer(event, user_text, now):
             # richmenuを変更するコードを以下に
             user_id = event.source.user_id
             # user_id = "U0a028f903127e2178bd789b4b4046ba7"
-            rms = rmm.get_list()
-            menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "q1"][0]
-            latest_menu_init_id = menu_init_rm['richMenuId']
-            rmm.apply(user_id, latest_menu_init_id)
+            rms = line_bot_api.get_rich_menu_list()
+            menu_init_rm = [rm for rm in rms if rm.name == "q1"][0]
+            latest_menu_init_id = menu_init_rm.rich_menu_id
+            line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
 
             messages = [
                 TextSendMessage(
-                    text=f'対応お疲れ様です！\nご協力ありがとうございます！\n\n計測終了:{date_str}\n開始時刻:{str_dt}\n対応時間:{time_used}秒\n対応職員:\n実験ID:{start_log.id}'
+                    text=f'対応お疲れ様です！\nご協力ありがとうございます！\n\n'
+                         f'開始時刻:{str_dt}\n'
+                         f'対応時間:{time_used}秒\n実験ID:{start_log.id}'
                 ),
-                TextSendMessage(text="ご自身の対応の評価をお願いいたします。\n\nなお、反応に2,3秒かかる場合があります。\n\n間違った情報を入力した場合、左上の前に戻るボタンを押してください。"),
+                TextSendMessage(
+                    text="ご自身の対応の評価をお願いいたします。\n\n前に戻るボタン、キャンセルボタンを必要な場合は押してください。"),
             ]
 
             line_bot_api.reply_message(
@@ -516,7 +500,10 @@ def address_change_flow(event, user_text):
         )
 
     if user_text in ['転出手続きをするのは親族や養護施設などの職員']:
-        reply_text = '''住民記録係につなぐ。\n\n\n（親族）本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定など）、窓口に来た人の本人確認書類が必要です。\n\n\n 施設などの職員証、窓口に来た人の本人確認書類が必要です。'''
+        reply_text = '''住民記録係につなぐ。
+（親族）本人が来庁不可能なことを証明する資料（施設入居・入院を証明するもの、介護認定など）、窓口に来た人の本人確認書類が必要です。
+ 
+（施設などの職員）施設などの職員証、窓口に来た人の本人確認書類が必要です。'''
         line_bot_api.reply_message(
             event.reply_token,
             get_text_send_messages(event, reply_text)
@@ -2617,7 +2604,9 @@ def my_number_make_flow(event, user_text):
         line_bot_api.reply_message(event.reply_token, template_message)
     if user_text in ['通知カードを再発行したい']:
         # 箱をわける
-        reply_text = '個人番号カードの廃止のため、本人確認書類を持って、来庁頂く必要があることをご案内。\n\n通知カード再交付のご案内。再交付手数料１通に付き５００円、本人が本人確認書類を持って、市役所または窓口センターに来庁。'
+        reply_text = '''個人番号カードの廃止のため、本人確認書類を持って、来庁頂く必要があることをご案内。
+
+通知カード再交付のご案内。再交付手数料１通に付き５００円、本人が本人確認書類を持って、市役所または窓口センターに来庁。'''
 
         line_bot_api.reply_message(
             event.reply_token,
@@ -2827,29 +2816,36 @@ def add_message_to_connect_other_department(reply_text):
 @handler.add(PostbackEvent)
 def handle_postback(event):
     data_str = event.postback.data
-    data_dict = dict(urlparse.parse_qsl(data_str))
-    if data_str == "init":
+    # data_dict = dict(urlparse.parse_qsl(data_str))
+    user_id = event.source.user_id
+
+    if data_str == "cancel":
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text="init. Going back to default menu.")
+            TextSendMessage(text="キャンセルします。 Going back to default menu.")
         )
 
-        rms = rmm.get_list()
-        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
-        latest_menu_init_id = menu_init_rm['richMenuId']
-        rmm.apply(event.source.user_id, latest_menu_init_id)
+        rms = line_bot_api.get_rich_menu_list()
+        menu_init_rm = [rm for rm in rms if rm.name == "menu_init"][0]
+        latest_menu_init_id = menu_init_rm.rich_menu_id
+        line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
 
     if re.match('q\d=\d', data_str):
+
+        sample_id = Sample.query \
+            .filter((Sample.user_id == event.source.user_id)) \
+            .order_by(db.desc(Sample.start_datetime)).first().id
+
         question_number = data_str[1]
-        rms = rmm.get_list()
+        rms = line_bot_api.get_rich_menu_list()
 
         if int(question_number) != total_question_counts:
-            menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number)+1)][0]
-            latest_menu_init_id = menu_init_rm['richMenuId']
-            rmm.apply(event.source.user_id, latest_menu_init_id)
+            menu_init_rm = [rm for rm in rms if rm.name == 'q' + str(int(question_number) + 1)][0]
+            latest_menu_init_id = menu_init_rm.rich_menu_id
+            line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text=f"{data_str}. 次の質問に移ります.")
+                TextSendMessage(text=f"Sample {sample_id}:{data_str}. 次の質問に移ります.")
             )
 
         elif int(question_number) == total_question_counts:
@@ -2858,9 +2854,19 @@ def handle_postback(event):
                 TextSendMessage(text=f"{data_str}.\n\nご回答、ご協力ありがとうございました!!")
             )
 
-            menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
-            latest_menu_init_id = menu_init_rm['richMenuId']
-            rmm.apply(event.source.user_id, latest_menu_init_id)
+            rms = line_bot_api.get_rich_menu_list()
+            menu_init_rm = [rm for rm in rms if rm.name == "menu_init"][0]
+            latest_menu_init_id = menu_init_rm.rich_menu_id
+            line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
+
+        data = Survey(
+            sample_id,
+            event.source.user_id,
+            int(question_number),
+            data_str[-1]
+        )
+        db.session.add(data)
+        db.session.commit()
 
     # back_to_q1
     if "back" in data_str:
@@ -2869,10 +2875,10 @@ def handle_postback(event):
             event.reply_token,
             TextSendMessage(text=f"{data_str}. 前の質問に戻ります。もう一度選択してください。")
         )
-        rms = rmm.get_list()
-        menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == 'q' + str(int(question_number))][0]
-        latest_menu_init_id = menu_init_rm['richMenuId']
-        rmm.apply(event.source.user_id, latest_menu_init_id)
+        rms = line_bot_api.get_rich_menu_list()
+        menu_init_rm = [rm for rm in rms if rm.name == 'q' + str(int(question_number))][0]
+        latest_menu_init_id = menu_init_rm.rich_menu_id
+        line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
 
 
 @handler.add(MessageEvent, message=LocationMessage)
@@ -2898,20 +2904,21 @@ def handle_sticker_message(event):
 
 @handler.add(FollowEvent)
 def handle_follow(event):
+
+    rms = line_bot_api.get_rich_menu_list()
+    menu_init_rm = [rm for rm in rms if rm.name == "menu_init"][0]
+    latest_menu_init_id = menu_init_rm.rich_menu_id
+
     user_id = event.source.user_id
-    res = rmm.get_applied_menu(user_id)
-    richmenu_id_applied = res["richMenuId"]
+    try:
+        richmenu_id_applied = line_bot_api.get_rich_menu_id_of_user(user_id)
 
-    rms = rmm.get_list()
-    menu_init_rm = [rm for rm in rms["richmenus"] if rm["name"] == "menu_init"][0]
-    latest_menu_init_id = menu_init_rm['richMenuId']
+    except LineBotApiError:
+        richmenu_id_applied = "no rich menu"
+        pass
 
-    # 適用中のリッチメニューIDと、rmmに入ってるリッチメニューのIDが異なれば
-    print(richmenu_id_applied)
-    print(latest_menu_init_id)
-    if 'richMenuId' not in res.keys() or richmenu_id_applied != latest_menu_init_id:
-        rmm.detach(user_id)
-        rmm.apply(user_id, latest_menu_init_id)
+    if richmenu_id_applied != latest_menu_init_id:
+        line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
 
     line_bot_api.reply_message(
         event.reply_token,

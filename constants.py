@@ -1,12 +1,11 @@
 import os
+from os.path import join, dirname
 import sys
 # noinspection PyPackageRequirements
 import errno
 from dotenv import load_dotenv
 from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage
-from richmenu import RichMenuManager, RichMenu
-import psycopg2
 
 # change below if using line-simulator or it would not work
 # debugging_tool = 'line-sim'
@@ -16,24 +15,29 @@ dt_format = '%Y-%m-%d %H:%M:%S'
 
 total_question_counts = 3
 
-if os.path.isfile('.env') or os.path.isfile('env'):
+if os.path.isfile('.env'):
     print('found .env. So it should be a local environment.')
-    ENV = load_dotenv('.env')
-    if ENV is None:
-        ENV = load_dotenv('env')
+    dotenv_path = join(dirname(__file__), '.env')
+    ENV = load_dotenv(dotenv_path)
+elif os.path.isfile('env'):
+    print('found env. So it should be a local environment.')
+    dotenv_path = join(dirname(__file__), 'env')
+    ENV = load_dotenv(dotenv_path)
+
 else:
     print('Cannot find .env. So it should be on the cloud.')
     debugging_tool = 'phone'
 
 CHANNEL_SECRET = os.getenv('CHANNEL_SECRET')
 CHANNEL_ACCESS_TOKEN = os.getenv('CHANNEL_ACCESS_TOKEN')
-DATABASE_URL = os.environ['DATABASE_URL']
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 if CHANNEL_SECRET is None:
     print('Specify LINE_CHANNEL_SECRET as environment variable.')
     sys.exit(1)
 if CHANNEL_ACCESS_TOKEN is None:
-    print('Specify LINE_CHANNEL_ACCESS_TOKEN as environment variable.')
+    print('Specify LINE_CHANNEL_ACCESS_TOKEN as environment variable.\nEndingSystem')
+
     sys.exit(1)
 
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
@@ -46,8 +50,6 @@ elif debugging_tool == 'line-sim':
 
 
 static_tmp_path = os.path.join(os.path.dirname(__file__), 'static', 'tmp')
-
-rmm = RichMenuManager(CHANNEL_ACCESS_TOKEN)
 
 
 # function for create tmp dir for download content
