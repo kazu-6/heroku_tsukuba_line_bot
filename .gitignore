@@ -4,6 +4,7 @@ ngrok.exe
 set-env.sh
 env
 ngrok
+richmenus
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
