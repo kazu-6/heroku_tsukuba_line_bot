@@ -1,6 +1,6 @@
 from constants import line_bot_api
 from linebot.models import (
-    RichMenu, RichMenuArea, RichMenuSize, RichMenuBounds, MessageAction, PostbackAction
+    RichMenu, RichMenuArea, RichMenuSize, RichMenuBounds, PostbackAction
 )
 
 from os.path import join, dirname
@@ -66,7 +66,6 @@ def register_survey_richmenu(index):
 
     rm = RichMenu(name=f"q{i}", chat_bar_text=f"質問{i}", size=RichMenuSize(width=2500, height=1686), areas=areas, selected=False)
     rich_menu_id = line_bot_api.create_rich_menu(rm)
-
 
     path = join(dirname(__file__), f'richmenus/survey – {index+1}.jpg')
 

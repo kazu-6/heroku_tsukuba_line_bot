@@ -43,9 +43,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 db = SQLAlchemy(app)
 
 
-# Todo: Survey Tableに記述するコード
+# Todo:ユーザー情報登録機能（本名入力）。あとは市役所の職員リストと突き合わす
 
-# ユーザー情報登録機能（本名入力）。あとは市役所の職員リストと突き合わす
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(), unique=True)
@@ -210,10 +209,16 @@ def start_timer(event, user_text, now):
             .order_by(db.desc(Sample.start_datetime)).first()
 
         if start_log is None:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}')
+            buttons_template = ButtonsTemplate(
+                title='キャンセルする場合押してください', text='お選びください', actions=[
+                    PostbackTemplateAction(label='計測キャンセル', text='計測キャンセル', data='cancel'),
+                ])
+            template_message = TemplateSendMessage(
+                alt_text='転入or転出？', template=buttons_template
             )
+            line_bot_api.reply_message(event.reply_token,
+                                       [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
+                                        template_message])
 
             data = Sample(event.source.user_id, now, now)
             db.session.add(data)
@@ -224,10 +229,16 @@ def start_timer(event, user_text, now):
                 TextSendMessage(text=f'計測はすでに開始しております。あるいは終了していない計測があります。')
             )
         else:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}')
+            buttons_template = ButtonsTemplate(
+                title='キャンセルする場合押してください', text='お選びください', actions=[
+                    PostbackTemplateAction(label='計測キャンセル', text='計測キャンセル', data='cancel'),
+                ])
+            template_message = TemplateSendMessage(
+                alt_text='転入or転出？', template=buttons_template
             )
+            line_bot_api.reply_message(event.reply_token,
+                                       [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
+                                        template_message])
 
             data = Sample(event.source.user_id, now, now)
             db.session.add(data)
@@ -2829,6 +2840,20 @@ def handle_postback(event):
         menu_init_rm = [rm for rm in rms if rm.name == "menu_init"][0]
         latest_menu_init_id = menu_init_rm.rich_menu_id
         line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
+
+        sample_id = Sample.query \
+            .filter((Sample.user_id == event.source.user_id)) \
+            .order_by(db.desc(Sample.start_datetime)).first().id
+
+        data = Survey(
+            sample_id,
+            event.source.user_id,
+            0,
+            "cancel"
+        )
+        db.session.add(data)
+        db.session.commit()
+
 
     if re.match('q\d=\d', data_str):
 

@@ -57,7 +57,6 @@ for i, word in enumerate(trigger_words):
     row, column = calculate_grid_position(i, column_count)
     x, y = get_position(row, column)
     canvas.paste(img, (x, y))
-    # rm.add_area(x, y, grid_width, grid_height, "message", word)
     areas.append(RichMenuArea(
         bounds=RichMenuBounds(x=x, y=y, width=grid_width, height=grid_height),
         action=MessageAction(label=f'q{i+1}', text=word)
