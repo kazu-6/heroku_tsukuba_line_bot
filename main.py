@@ -161,17 +161,20 @@ def handle_text_message(event):
             [TextSendMessage(text="職員番号を入力してください。\n正職員：半角数字4桁\n臨時職員：英数字8桁")]
         )
 
-    if re.match('\d{4,4}', user_text) or re.match('[a-zA-Z0-9_]{8,8}', user_text):
-        line_bot_api.reply_message(
-            event.reply_token,
-            [TextSendMessage(text=f"{user_text}を{line_bot_api.get_profile(event.source.user_id).display_name}さんの職員番号として登録しました。\n\n修正する場合、もう一度入力してください。")]
-        )
-        user_data = User(
-            event.source.user_id,
-            user_text,
-            "dummy"
-        )
-        db.session.add(user_data)
+    if re.match('\d{4, 4}', user_text) or re.match('[a-zA-Z0-9_]{8, 8}', user_text):
+
+        if len(user_text) in [4, 8]:
+
+            line_bot_api.reply_message(
+                event.reply_token,
+                [TextSendMessage(text=f"{user_text}を{line_bot_api.get_profile(event.source.user_id).display_name}さんの職員番号として登録しました。\n\n修正する場合、もう一度入力してください。")]
+            )
+            user_data = User(
+                event.source.user_id,
+                user_text,
+                "dummy"
+            )
+            db.session.add(user_data)
 
 
 def end_timer(event, user_text, now):

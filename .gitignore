@@ -104,3 +104,4 @@ ENV/
 .ropeproject
 
 .idea/
+/richmenus/
