@@ -174,7 +174,7 @@ def register_user(event, user_text):
             )
             user_data = User(
                 event.source.user_id,
-                f'{user_text}',
+                user_text,
                 "dummy"
             )
             db.session.add(user_data)
