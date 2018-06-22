@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import pprint
 import os
 
@@ -214,7 +212,7 @@ def start_timer(event, user_text, now):
                     PostbackTemplateAction(label='計測キャンセル', text='計測キャンセル', data='cancel'),
                 ])
             template_message = TemplateSendMessage(
-                alt_text='転入or転出？', template=buttons_template
+                alt_text='キャンセルボタンが表示されています', template=buttons_template
             )
             line_bot_api.reply_message(event.reply_token,
                                        [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
@@ -222,6 +220,8 @@ def start_timer(event, user_text, now):
 
             data = Sample(event.source.user_id, now, now)
             db.session.add(data)
+
+
             return
         if start_log.start_datetime == start_log.end_datetime:
             line_bot_api.reply_message(
@@ -2841,9 +2841,11 @@ def handle_postback(event):
         latest_menu_init_id = menu_init_rm.rich_menu_id
         line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
 
-        sample_id = Sample.query \
+        sample_data = Sample.query \
             .filter((Sample.user_id == event.source.user_id)) \
-            .order_by(db.desc(Sample.start_datetime)).first().id
+            .order_by(db.desc(Sample.start_datetime)).first()
+
+        sample_id = sample_data.id
 
         data = Survey(
             sample_id,
@@ -2851,9 +2853,9 @@ def handle_postback(event):
             0,
             "cancel"
         )
+        sample_data.end_datetime = datetime.datetime.now()
         db.session.add(data)
         db.session.commit()
-
 
     if re.match('q\d=\d', data_str):
 
