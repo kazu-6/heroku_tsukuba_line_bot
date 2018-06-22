@@ -46,7 +46,7 @@ db = SQLAlchemy(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(), unique=True)
+    user_id = db.Column(db.String())
     staff_id = db.Column(db.String())
     real_name = db.Column(db.String())
 
@@ -165,10 +165,7 @@ def register_user(event, user_text):
             [TextSendMessage(text="職員番号を入力してください。\n正職員：半角数字4桁\n臨時職員：英数字8桁")]
         )
     if re.match('\d{4}', user_text) or re.match('[a-zA-Z0-9_]{8}', user_text):
-        print("letters")
         if len(user_text) in [4, 8]:
-            print("four")
-
             line_bot_api.reply_message(
                 event.reply_token,
                 [TextSendMessage(
@@ -177,10 +174,12 @@ def register_user(event, user_text):
             )
             user_data = User(
                 event.source.user_id,
-                user_text,
+                f'{user_text}',
                 "dummy"
             )
             db.session.add(user_data)
+            print(type(user_text))
+            db.session.commit()
 
 
 def end_timer(event, user_text, now):
