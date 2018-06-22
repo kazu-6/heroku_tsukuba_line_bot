@@ -52,7 +52,7 @@ class User(db.Model):
 
     def __init__(self, user_id, staff_id, real_name):
         self.user_id = user_id
-        self.text = staff_id
+        self.staff_id = staff_id
         self.real_name = "dummy_name"
 
     def __repr__(self):
