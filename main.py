@@ -155,19 +155,25 @@ def handle_text_message(event):
 
     insert_log_to_db(event, now)
 
+    register_user(event, user_text)
+
+
+def register_user(event, user_text):
     if user_text == "職員登録":
         line_bot_api.reply_message(
             event.reply_token,
             [TextSendMessage(text="職員番号を入力してください。\n正職員：半角数字4桁\n臨時職員：英数字8桁")]
         )
-
-    if re.match('\d{4, 4}', user_text) or re.match('[a-zA-Z0-9_]{8, 8}', user_text):
-
+    if re.match('\d{4}', user_text) or re.match('[a-zA-Z0-9_]{8}', user_text):
+        print("letters")
         if len(user_text) in [4, 8]:
+            print("four")
 
             line_bot_api.reply_message(
                 event.reply_token,
-                [TextSendMessage(text=f"{user_text}を{line_bot_api.get_profile(event.source.user_id).display_name}さんの職員番号として登録しました。\n\n修正する場合、もう一度入力してください。")]
+                [TextSendMessage(
+                    text=f"{user_text}を{line_bot_api.get_profile(event.source.user_id).display_name}さん"
+                         f"の職員番号として登録しました。\n\n修正する場合、もう一度入力してください。")]
             )
             user_data = User(
                 event.source.user_id,
