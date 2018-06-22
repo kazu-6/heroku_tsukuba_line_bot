@@ -38,6 +38,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
 
 
@@ -52,7 +53,7 @@ class User(db.Model):
     def __init__(self, user_id, staff_id, real_name):
         self.user_id = user_id
         self.text = staff_id
-        self.real_name = real_name
+        self.real_name = "dummy_name"
 
     def __repr__(self):
         return '<user_id {}>'.format(self.user_id)
@@ -154,6 +155,24 @@ def handle_text_message(event):
 
     insert_log_to_db(event, now)
 
+    if user_text == "職員登録":
+        line_bot_api.reply_message(
+            event.reply_token,
+            [TextSendMessage(text="職員番号を入力してください。\n正職員：半角数字4桁\n臨時職員：英数字8桁")]
+        )
+
+    if re.match('\d{4}', user_text) or re.match('[a-zA-Z0-9_]{8}', user_text):
+        line_bot_api.reply_message(
+            event.reply_token,
+            [TextSendMessage(text=f"{user_text}を{line_bot_api.get_profile(event.source.user_id).display_name}さんの職員番号として登録しました。\n\n修正する場合、もう一度入力してください。")]
+        )
+        user_data = User(
+            event.source.user_id,
+            user_text,
+            "dummy"
+        )
+        db.session.add(user_data)
+
 
 def end_timer(event, user_text, now):
     if user_text in ['計測終了']:
@@ -209,7 +228,7 @@ def start_timer(event, user_text, now):
         if start_log is None:
             buttons_template = ButtonsTemplate(
                 title='キャンセルする場合押してください', text='お選びください', actions=[
-                    PostbackTemplateAction(label='計測キャンセル', text='計測キャンセル', data='cancel'),
+                    PostbackTemplateAction(label='計測キャンセル', text='計測終了（キャンセル）', data='cancel'),
                 ])
             template_message = TemplateSendMessage(
                 alt_text='キャンセルボタンが表示されています', template=buttons_template
