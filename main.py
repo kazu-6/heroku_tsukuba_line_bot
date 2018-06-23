@@ -162,7 +162,7 @@ def register_user(event, user_text):
             event.reply_token,
             [TextSendMessage(text="職員番号を入力してください。\n正職員：半角数字4桁\n臨時職員：英数字8桁")]
         )
-    if re.match('\d{4}', user_text) or re.match('[A-Z]\d{4}]', user_text):
+    if re.match('[A-Z]?\d{4}$', user_text):
         if len(user_text) in [4, 5]:
             line_bot_api.reply_message(
                 event.reply_token,
