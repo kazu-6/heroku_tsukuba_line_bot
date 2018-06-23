@@ -42,8 +42,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
 
 
-# Todo:ユーザー情報登録機能（本名入力）。あとは市役所の職員リストと突き合わす
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String())
@@ -53,7 +51,7 @@ class User(db.Model):
     def __init__(self, user_id, staff_id, real_name):
         self.user_id = user_id
         self.staff_id = staff_id
-        self.real_name = "dummy_name"
+        self.real_name = real_name
 
     def __repr__(self):
         return '<user_id {}>'.format(self.user_id)
@@ -164,8 +162,8 @@ def register_user(event, user_text):
             event.reply_token,
             [TextSendMessage(text="職員番号を入力してください。\n正職員：半角数字4桁\n臨時職員：英数字8桁")]
         )
-    if re.match('\d{4}', user_text) or re.match('[a-zA-Z0-9_]{8}', user_text):
-        if len(user_text) in [4, 8]:
+    if re.match('\d{4}', user_text) or re.match('[A-Z]\d{4}]', user_text):
+        if len(user_text) in [4, 5]:
             line_bot_api.reply_message(
                 event.reply_token,
                 [TextSendMessage(
@@ -247,8 +245,6 @@ def start_timer(event, user_text, now):
 
             data = Sample(event.source.user_id, now, now)
             db.session.add(data)
-
-
             return
         if start_log.start_datetime == start_log.end_datetime:
             line_bot_api.reply_message(
