@@ -5,7 +5,13 @@ import datetime
 import re
 # noinspection PyUnresolvedReferences
 import urllib.parse as urlparse
+
+import numpy
 from flask import Flask, request, abort
+
+from apscheduler.schedulers.background import BackgroundScheduler
+
+import logging
 
 from linebot.exceptions import (
     InvalidSignatureError, LineBotApiError
@@ -22,7 +28,7 @@ from sample_handler import (
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,
     SourceUser, SourceGroup, SourceRoom,
-    TemplateSendMessage, ConfirmTemplate, MessageTemplateAction,
+    TemplateSendMessage, ConfirmTemplate, MessageTemplateAction, ImageSendMessage,
     ButtonsTemplate, ImageCarouselTemplate, ImageCarouselColumn, URITemplateAction,
     ImagemapSendMessage, ImagemapArea, ImagemapAction, MessageImagemapAction, URIImagemapAction,
     PostbackTemplateAction, DatetimePickerTemplateAction,
@@ -40,6 +46,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
+logging.basicConfig()
 
 
 class User(db.Model):
@@ -81,14 +88,16 @@ class Sample(db.Model):
     user_id = db.Column(db.String())
     start_datetime = db.Column(db.DateTime)
     end_datetime = db.Column(db.DateTime)
+    state = db.Column(db.String())
 
-    def __init__(self, user_id, start_datetime, end_datetime):
+    def __init__(self, user_id, start_datetime, end_datetime, state):
         self.user_id = user_id
         self.start_datetime = start_datetime
         self.end_datetime = end_datetime
+        self.state = state
 
     def __repr__(self):
-        return f'<Sample {self.sample_id}>'
+        return f'<Sample {self.id}>'
 
 
 class Survey(db.Model):
@@ -155,6 +164,9 @@ def handle_text_message(event):
 
     register_user(event, user_text)
 
+    if user_text == 'data':
+        push_summary()
+
 
 def register_user(event, user_text):
     if user_text == "職員登録":
@@ -190,6 +202,7 @@ def end_timer(event, user_text, now):
         if start_log.start_datetime == start_log.end_datetime:
             str_dt = start_log.start_datetime.strftime("%H:%M:%S")
             start_log.end_datetime = now
+            start_log.state = "end"
             db.session.commit()
             time_used = int((now - start_log.start_datetime).total_seconds())
 
@@ -233,8 +246,11 @@ def start_timer(event, user_text, now):
 
         if start_log is None:
             buttons_template = ButtonsTemplate(
-                title='キャンセルする場合押してください', text='お選びください', actions=[
-                    PostbackTemplateAction(label='計測キャンセル', text='計測終了（キャンセル）', data='cancel'),
+                title='キャンセルする場合、その理由を押してください', text='お選びください', actions=[
+                    PostbackTemplateAction(label='クレーム故に代わる必要', text='計測終了（キャンセル。クレーム故に代わった。）', data='cancel_クレーム故に代わる必要'),
+                    PostbackTemplateAction(label='Bot対応範囲外', text='計測終了（キャンセル。Bot対応範囲外。）', data='cancel_Bot対応範囲外'),
+                    PostbackTemplateAction(label='窓口呼び出し', text='計測終了（キャンセル。窓口呼び出し。）', data='cancel_窓口呼び出し'),
+                    PostbackTemplateAction(label='領域的に対応不可', text='計測終了（キャンセル。領域的に対応不可。）', data='cancel_領域的に対応不可'),
                 ])
             template_message = TemplateSendMessage(
                 alt_text='キャンセルボタンが表示されています', template=buttons_template
@@ -243,7 +259,7 @@ def start_timer(event, user_text, now):
                                        [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
                                         template_message])
 
-            data = Sample(event.source.user_id, now, now)
+            data = Sample(event.source.user_id, now, now, "ongoing")
             db.session.add(data)
             return
         if start_log.start_datetime == start_log.end_datetime:
@@ -253,8 +269,11 @@ def start_timer(event, user_text, now):
             )
         else:
             buttons_template = ButtonsTemplate(
-                title='キャンセルする場合押してください', text='お選びください', actions=[
-                    PostbackTemplateAction(label='計測キャンセル', text='計測キャンセル', data='cancel'),
+                title='キャンセルする場合、その理由を押してください', text='お選びください', actions=[
+                    PostbackTemplateAction(label='クレーム故に代わる必要', text='計測終了（キャンセル。クレーム故に代わった。）', data='cancel_クレーム故に代わる必要'),
+                    PostbackTemplateAction(label='Bot対応範囲外', text='計測終了（キャンセル。Bot対応範囲外。）', data='cancel_Bot対応範囲外'),
+                    PostbackTemplateAction(label='窓口呼び出し', text='計測終了（キャンセル。窓口呼び出し。）', data='cancel_窓口呼び出し'),
+                    PostbackTemplateAction(label='領域的に対応不可', text='計測終了（キャンセル。領域的に対応不可。）', data='cancel_領域的に対応不可'),
                 ])
             template_message = TemplateSendMessage(
                 alt_text='転入or転出？', template=buttons_template
@@ -263,7 +282,7 @@ def start_timer(event, user_text, now):
                                        [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
                                         template_message])
 
-            data = Sample(event.source.user_id, now, now)
+            data = Sample(event.source.user_id, now, now, "ongoing")
             db.session.add(data)
 
 
@@ -2853,7 +2872,7 @@ def handle_postback(event):
     # data_dict = dict(urlparse.parse_qsl(data_str))
     user_id = event.source.user_id
 
-    if data_str == "cancel":
+    if "cancel" in data_str:
         line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text="キャンセルします。 Going back to default menu.")
@@ -2868,16 +2887,8 @@ def handle_postback(event):
             .filter((Sample.user_id == event.source.user_id)) \
             .order_by(db.desc(Sample.start_datetime)).first()
 
-        sample_id = sample_data.id
-
-        data = Survey(
-            sample_id,
-            event.source.user_id,
-            0,
-            "cancel"
-        )
+        sample_data.state = data_str
         sample_data.end_datetime = datetime.datetime.now()
-        db.session.add(data)
         db.session.commit()
 
     if re.match('q\d=\d', data_str):
@@ -2977,11 +2988,53 @@ def handle_follow(event):
     )
 
 
+def push_summary():
+
+    start_logs = Sample.query \
+        .filter((Sample.start_datetime >= datetime.datetime.now() - datetime.timedelta(days=4))).all()
+
+    diffs = [(start_log.end_datetime - start_log.start_datetime).total_seconds() for start_log in start_logs]
+    print(diffs)
+    average = round(numpy.average(diffs), 1)
+    print(average)
+
+    # url = get_chart_url([60, 120, 100])
+
+    url = get_chart_url([int(x) for x in diffs])
+    print(url)
+    url = "https://i.imgur.com/LCGM2TQ.png"
+    line_bot_api.push_message(
+        "U0a028f903127e2178bd789b4b4046ba7",
+        [TextSendMessage(text=f'本日の平均対応時間は、{average}でした。'),
+         ImageSendMessage(original_content_url=url, preview_image_url=url)]
+    )
+
+
+def get_chart_url(data):
+
+    data_str_list = [str(x) for x in data]
+    data_str_joined = ",".join(data_str_list)
+    print(data_str_joined)
+    base_url = "https://chart.apis.google.com/chart?"
+    return base_url + f"chs=240x240&chd=t:{data_str_joined}|30,23,73,24,87&" \
+                      f"cht=bvg&chco=00ff00,0000ff&chxt=x,y&chxr=0,1,5|1,0,200&chxp=1,0,30,60,90,120,150,180,210" \
+                      f"&chtt=fsda&chdl=CB|CB"
+
+
 add_multimedia_event_handler()
 
 add_group_event_handler()
 
+
 if __name__ == "__main__":
+    sc = BackgroundScheduler()
+    sc.add_job(push_summary, 'cron', day_of_week='mon-fri', hour=5, minute=10)
+    sc.print_jobs()
+    sc.start()
+
     port = int(os.environ.get('PORT', 8000))
     print(port)
     app.run(debug=True, port=port, host='0.0.0.0')
+
+
+

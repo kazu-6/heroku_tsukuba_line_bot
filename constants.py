@@ -8,8 +8,8 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage
 
 # change below if using line-simulator or it would not work
-debugging_tool = 'line-sim'
-# debugging_tool = 'phone'
+# debugging_tool = 'line-sim'
+debugging_tool = 'phone'
 
 dt_format = '%Y-%m-%d %H:%M:%S'
 
