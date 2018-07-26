@@ -48,7 +48,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
 logging.basicConfig()
 
-# todo 担当代わった場合押すボタンを設置
 # todo sample に担当代わった列を追加
 # todo　質問内容を聞くボタン
 
@@ -287,7 +286,7 @@ def start_timer(event, user_text, now):
                 alt_text='計測中です。キャンセルまたは対応職員が変更した場合、注意お願いします。', template=buttons_template_change_operator
             )
             line_bot_api.reply_message(event.reply_token,
-                                       [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
+                                       [TextSendMessage(text=f'計測開始:{date_str}'),
                                         template_message,
                                         template_message_change_operator])
 
