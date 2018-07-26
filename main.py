@@ -48,6 +48,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
 logging.basicConfig()
 
+# todo 担当代わった場合押すボタンを設置
+# todo sample に担当代わった列を追加
+# todo　質問内容を聞くボタン
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -239,7 +243,6 @@ def start_timer(event, user_text, now):
     # 両方おしているのをとって、ちゃんと直前が計測スタートになってないことを確認する。
     if user_text in ['計測スタート']:
         date_str = datetime.datetime.strftime(now, "%H:%M:%S")
-        staff_id = 1234  # soft code needed
         start_log = Sample.query \
             .filter((Sample.user_id == event.source.user_id)) \
             .order_by(db.desc(Sample.start_datetime)).first()
@@ -247,16 +250,14 @@ def start_timer(event, user_text, now):
         if start_log is None:
             buttons_template = ButtonsTemplate(
                 title='キャンセルする場合、その理由を押してください', text='お選びください', actions=[
-                    PostbackTemplateAction(label='クレーム故に代わる必要', text='計測終了（キャンセル。クレーム故に代わった。）', data='cancel_クレーム故に代わる必要'),
-                    PostbackTemplateAction(label='Bot対応範囲外', text='計測終了（キャンセル。Bot対応範囲外。）', data='cancel_Bot対応範囲外'),
+                    PostbackTemplateAction(label='クレーム故に代わる必要', text='計測終了（キャンセル。クレーム故交代。）', data='cancel_クレーム故に代わる必要'),
                     PostbackTemplateAction(label='窓口呼び出し', text='計測終了（キャンセル。窓口呼び出し。）', data='cancel_窓口呼び出し'),
-                    PostbackTemplateAction(label='領域的に対応不可', text='計測終了（キャンセル。領域的に対応不可。）', data='cancel_領域的に対応不可'),
                 ])
             template_message = TemplateSendMessage(
-                alt_text='キャンセルボタンが表示されています', template=buttons_template
+                alt_text='計測中です。キャンセルボタンが表示されています。', template=buttons_template
             )
             line_bot_api.reply_message(event.reply_token,
-                                       [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
+                                       [TextSendMessage(text=f'計測開始:{date_str}'),
                                         template_message])
 
             data = Sample(event.source.user_id, now, now, "ongoing")
@@ -271,16 +272,24 @@ def start_timer(event, user_text, now):
             buttons_template = ButtonsTemplate(
                 title='キャンセルする場合、その理由を押してください', text='お選びください', actions=[
                     PostbackTemplateAction(label='クレーム故に代わる必要', text='計測終了（キャンセル。クレーム故に代わった。）', data='cancel_クレーム故に代わる必要'),
-                    PostbackTemplateAction(label='Bot対応範囲外', text='計測終了（キャンセル。Bot対応範囲外。）', data='cancel_Bot対応範囲外'),
-                    PostbackTemplateAction(label='窓口呼び出し', text='計測終了（キャンセル。窓口呼び出し。）', data='cancel_窓口呼び出し'),
-                    PostbackTemplateAction(label='領域的に対応不可', text='計測終了（キャンセル。領域的に対応不可。）', data='cancel_領域的に対応不可'),
+                    PostbackTemplateAction(label='その他', text='計測終了（キャンセル。その他。）', data='cancel_その他'),
                 ])
             template_message = TemplateSendMessage(
-                alt_text='転入or転出？', template=buttons_template
+                alt_text='計測中です。キャンセルボタンが表示されています。', template=buttons_template
+            )
+
+            buttons_template_change_operator = ButtonsTemplate(
+                title='電話応対の職員が代わった場合押してください', text='代わった場合のみで結構です', actions=[
+                    PostbackTemplateAction(label='職員が交代した', text='職員が交代した', data='change_staff'),
+                ]
+            )
+            template_message_change_operator = TemplateSendMessage(
+                alt_text='計測中です。キャンセルまたは対応職員が変更した場合、注意お願いします。', template=buttons_template_change_operator
             )
             line_bot_api.reply_message(event.reply_token,
                                        [TextSendMessage(text=f'計測開始:{date_str}\n\n職員ID:{staff_id}'),
-                                        template_message])
+                                        template_message,
+                                        template_message_change_operator])
 
             data = Sample(event.source.user_id, now, now, "ongoing")
             db.session.add(data)

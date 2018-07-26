@@ -13,7 +13,7 @@ debugging_tool = 'phone'
 
 dt_format = '%Y-%m-%d %H:%M:%S'
 
-total_question_counts = 3
+total_question_counts = 2
 
 if os.path.isfile('.env'):
     print('found .env. So it should be a local environment.')
