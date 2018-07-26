@@ -51,6 +51,10 @@ logging.basicConfig()
 # todo sample に担当代わった列を追加
 # todo　質問内容を聞くボタン
 
+# heroku run bash -a tsukuba-line-bot
+# python
+# from main import db
+# db.create_all()
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -92,12 +96,14 @@ class Sample(db.Model):
     start_datetime = db.Column(db.DateTime)
     end_datetime = db.Column(db.DateTime)
     state = db.Column(db.String())
+    staff_change = db.Column(db.Boolean())
 
     def __init__(self, user_id, start_datetime, end_datetime, state):
         self.user_id = user_id
         self.start_datetime = start_datetime
         self.end_datetime = end_datetime
         self.state = state
+        self.staff_change = False
 
     def __repr__(self):
         return f'<Sample {self.id}>'
@@ -279,7 +285,7 @@ def start_timer(event, user_text, now):
 
             buttons_template_change_operator = ButtonsTemplate(
                 title='電話応対の職員が代わった場合押してください', text='代わった場合のみで結構です', actions=[
-                    PostbackTemplateAction(label='職員が交代した', text='職員が交代した', data='change_staff'),
+                    PostbackTemplateAction(label='職員が交代した', text='職員が交代した', data='staff_change'),
                 ]
             )
             template_message_change_operator = TemplateSendMessage(
