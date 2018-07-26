@@ -97,13 +97,15 @@ class Sample(db.Model):
     end_datetime = db.Column(db.DateTime)
     state = db.Column(db.String())
     staff_change = db.Column(db.Boolean())
+    staff_change_datetime = db.Column(db.DateTime)
 
-    def __init__(self, user_id, start_datetime, end_datetime, state):
+    def __init__(self, user_id, start_datetime, end_datetime, state, staff_change, staff_change_datetime):
         self.user_id = user_id
         self.start_datetime = start_datetime
         self.end_datetime = end_datetime
         self.state = state
-        self.staff_change = False
+        self.staff_change = staff_change
+        self.start_datetime = staff_change_datetime
 
     def __repr__(self):
         return f'<Sample {self.id}>'
@@ -265,7 +267,7 @@ def start_timer(event, user_text, now):
                                        [TextSendMessage(text=f'計測開始:{date_str}'),
                                         template_message])
 
-            data = Sample(event.source.user_id, now, now, "ongoing")
+            data = Sample(event.source.user_id, now, now, "ongoing", False, now)
             db.session.add(data)
             return
         if start_log.start_datetime == start_log.end_datetime:
@@ -296,7 +298,7 @@ def start_timer(event, user_text, now):
                                         template_message,
                                         template_message_change_operator])
 
-            data = Sample(event.source.user_id, now, now, "ongoing")
+            data = Sample(event.source.user_id, now, now, "ongoing", False, now)
             db.session.add(data)
 
 
@@ -2954,6 +2956,16 @@ def handle_postback(event):
         menu_init_rm = [rm for rm in rms if rm.name == 'q' + str(int(question_number))][0]
         latest_menu_init_id = menu_init_rm.rich_menu_id
         line_bot_api.link_rich_menu_to_user(user_id, latest_menu_init_id)
+
+    if 'staff_change' in data_str:
+        sample_data = Sample.query \
+            .filter((Sample.user_id == event.source.user_id)) \
+            .order_by(db.desc(Sample.start_datetime)).first()
+
+        sample_data.staff_change = True
+        sample_data.staff_change_datetime = datetime.datetime.now()
+        db.session.commit()
+
 
 
 @handler.add(MessageEvent, message=LocationMessage)
