@@ -48,8 +48,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 db = SQLAlchemy(app)
 logging.basicConfig()
 
-# todo sample に担当代わった列を追加
-# todo　質問内容を聞くボタン
+# todo キャンセルじゃなくて、あとでどういう状況だったかを押して貰う。
+# 7
+# 理想は↓これだけど、1週目はその都度キャンセル（理由は現状で）で、その後に例の質問すればいいか。
+# 2週目以降キャンセルが相当多かったら、実験を組み直そう。
+
+# 市民の方は、解答を得られましたか？
+# 問い合わせ内容は、ご自身の係の対応範囲でしたか？
+# その他特記事項は、ありますか？
+# クレームだった。途中で切れた。庁内の電話。市民窓口課対応範囲外。その他
+
 
 # heroku run bash -a tsukuba-line-bot
 # python
@@ -257,8 +265,10 @@ def start_timer(event, user_text, now):
         if start_log is None:
             buttons_template = ButtonsTemplate(
                 title='キャンセルする場合、その理由を押してください', text='お選びください', actions=[
-                    PostbackTemplateAction(label='クレーム故に代わる必要', text='計測終了（キャンセル。クレーム故交代。）', data='cancel_クレーム故に代わる必要'),
-                    PostbackTemplateAction(label='窓口呼び出し', text='計測終了（キャンセル。窓口呼び出し。）', data='cancel_窓口呼び出し'),
+                    PostbackTemplateAction(label='クレーム/切断/窓口呼出', text='計測終了（クレーム/切断/窓口呼出）', data='cancel_クレーム/切断/窓口呼出'),
+                    PostbackTemplateAction(label='市民窓口課の対応外', text='計測終了（市民窓口課の対応外）', data='cancel_市民窓口課の対応外'),
+                    PostbackTemplateAction(label='庁内からの電話', text='計測終了（庁内からの電話）', data='cancel_庁内の電話'),
+                    PostbackTemplateAction(label='誤操作/その他', text='計測終了（その他）', data='cancel_その他'),
                 ])
             template_message = TemplateSendMessage(
                 alt_text='計測中です。キャンセルボタンが表示されています。', template=buttons_template
@@ -278,8 +288,10 @@ def start_timer(event, user_text, now):
         else:
             buttons_template = ButtonsTemplate(
                 title='キャンセルする場合、その理由を押してください', text='お選びください', actions=[
-                    PostbackTemplateAction(label='クレーム故に代わる必要', text='計測終了（キャンセル。クレーム故に代わった。）', data='cancel_クレーム故に代わる必要'),
-                    PostbackTemplateAction(label='その他', text='計測終了（キャンセル。その他。）', data='cancel_その他'),
+                    PostbackTemplateAction(label='クレーム/切断/窓口呼出', text='計測終了（クレーム/切断/窓口呼出）', data='cancel_クレーム/切断/窓口呼出'),
+                    PostbackTemplateAction(label='市民窓口課の対応外', text='計測終了（市民窓口課の対応外）', data='cancel_市民窓口課の対応外'),
+                    PostbackTemplateAction(label='庁内からの電話', text='計測終了（庁内からの電話）', data='cancel_庁内の電話'),
+                    PostbackTemplateAction(label='誤操作/その他', text='計測終了（その他）', data='cancel_その他'),
                 ])
             template_message = TemplateSendMessage(
                 alt_text='計測中です。キャンセルボタンが表示されています。', template=buttons_template
@@ -287,7 +299,7 @@ def start_timer(event, user_text, now):
 
             buttons_template_change_operator = ButtonsTemplate(
                 title='電話応対の職員が代わった場合押してください', text='代わった場合のみで結構です', actions=[
-                    PostbackTemplateAction(label='職員が交代した', text='職員が交代した', data='staff_change'),
+                    PostbackTemplateAction(label='職員が交代した', text='職員が交代したことを記録。', data='staff_change'),
                 ]
             )
             template_message_change_operator = TemplateSendMessage(

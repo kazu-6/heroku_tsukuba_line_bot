@@ -77,7 +77,7 @@ def register_survey_richmenu(index):
 
 if __name__ == '__main__':
 
-    for i in range(3):
+    for i in range(2):
         register_survey_richmenu(i)
 
     rms = line_bot_api.get_rich_menu_list()
